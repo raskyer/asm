@@ -4,9 +4,9 @@ package asm
 // order: ( <tt>visit</tt> | <tt>visitEnum</tt> | <tt>visitAnnotation</tt> | <tt>visitArray</tt> )*
 // <tt>visitEnd</tt>.
 type AnnotationVisitor interface {
-	visit(name string, value interface{})
-	visitEnum(name, descriptor, value string)
-	visitAnnotation(name, descriptor string) AnnotationVisitor
-	visitArray(name string) AnnotationVisitor
-	visitEnd()
+	Visit(name string, value interface{})
+	VisitEnum(name, descriptor, value string)
+	VisitAnnotation(name, descriptor string) AnnotationVisitor
+	VisitArray(name string) AnnotationVisitor
+	VisitEnd()
 }

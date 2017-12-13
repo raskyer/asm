@@ -69,12 +69,12 @@ func (l *Label) addLineNumber(lineNumber int) {
 }
 
 func (l Label) accept(methodVisitor MethodVisitor, visitLineNumbers bool) {
-	methodVisitor.visitLabel(&l)
+	methodVisitor.VisitLabel(&l)
 	if visitLineNumbers && l.lineNumber != 0 {
-		methodVisitor.visitLineNumber(int(l.lineNumber)&0xFFFF, &l)
+		methodVisitor.VisitLineNumber(int(l.lineNumber)&0xFFFF, &l)
 		if l.otherLineNumbers != nil {
 			for i := 1; i <= l.otherLineNumbers[0]; i++ {
-				methodVisitor.visitLineNumber(l.otherLineNumbers[i], &l)
+				methodVisitor.VisitLineNumber(l.otherLineNumbers[i], &l)
 			}
 		}
 	}
