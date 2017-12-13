@@ -19,8 +19,8 @@ func (e EventVisitor) VisitSource(source, debug string) {
 
 }
 
-func (e EventVisitor) VisitModule(name string, access, version int) {
-
+func (e EventVisitor) VisitModule(name string, access int, version string) asm.ModuleVisitor {
+	return nil
 }
 
 func (e EventVisitor) VisitOuterClass(owner, name, descriptor string) {
@@ -43,8 +43,8 @@ func (e EventVisitor) VisitInnerClass(name, outerName, innerName string, access 
 
 }
 
-func (e EventVisitor) VisitField(access int, name, descriptor, signature string, value interface{}) {
-
+func (e EventVisitor) VisitField(access int, name, descriptor, signature string, value interface{}) asm.FieldVisitor {
+	return nil
 }
 
 func (e EventVisitor) VisitMethod(access int, name, descriptor, signature string, exceptions []string) asm.MethodVisitor {

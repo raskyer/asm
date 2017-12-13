@@ -20,13 +20,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	r, err := asm.NewClassReader(bytes)
+	reader, err := asm.NewClassReader(bytes)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	r.Accept(&EventVisitor{
+	reader.Accept(&EventVisitor{
 		OnVisit: []func(version, access int, name, signature, superName string, interfaces []string){
 			func(version, access int, name, signature, superName string, interfaces []string) {
 				fmt.Println(name, signature, superName, interfaces)

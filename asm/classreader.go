@@ -365,7 +365,99 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []At
 // ----------------------------------------------------------------------------------------------
 
 func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, moduleOffset int, modulePackagesOffset int, moduleMainClass string) {
-	//TODO
+	buffer := context.charBuffer
+	currentOffset := moduleOffset
+	moduleName := c.readModuleB(currentOffset, buffer)
+	moduleFlags := c.readUnsignedShort(currentOffset + 2)
+	moduleVersion := c.readUTF8(currentOffset+4, buffer)
+	currentOffset += 6
+	moduleVisitor := classVisitor.VisitModule(moduleName, moduleFlags, moduleVersion)
+	if moduleVisitor == nil {
+		return
+	}
+
+	if modulePackagesOffset != 0 {
+		packageCount := c.readUnsignedShort(modulePackagesOffset)
+		currentPackageOffset := modulePackagesOffset + 2
+		for packageCount > 0 {
+			moduleVisitor.VisitPackage(c.readPackage(currentPackageOffset, buffer))
+			currentPackageOffset += 2
+			packageCount--
+		}
+	}
+
+	requiresCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for requiresCount > 0 {
+		requires := c.readModuleB(currentOffset, buffer)
+		requiresFlags := c.readUnsignedShort(currentOffset + 2)
+		requiresVersion := c.readUTF8(currentOffset+4, buffer)
+		currentOffset += 6
+		moduleVisitor.VisitRequire(requires, requiresFlags, requiresVersion)
+		requiresCount--
+	}
+
+	exportsCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for exportsCount > 0 {
+		exports := c.readPackage(currentOffset, buffer)
+		exportsFlags := c.readUnsignedShort(currentOffset + 2)
+		exportsToCount := c.readUnsignedShort(currentOffset + 4)
+		currentOffset += 6
+		var exportsTo []string
+		if exportsToCount != 0 {
+			exportsTo = make([]string, exportsToCount)
+			for i := 0; i < exportsToCount; i++ {
+				exportsTo[i] = c.readModuleB(currentOffset, buffer)
+				currentOffset += 2
+			}
+		}
+		moduleVisitor.VisitExport(exports, exportsFlags, exportsTo...)
+		exportsCount--
+	}
+
+	opensCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for opensCount > 0 {
+		opens := c.readPackage(currentOffset, buffer)
+		opensFlags := c.readUnsignedShort(currentOffset + 2)
+		opensToCount := c.readUnsignedShort(currentOffset + 4)
+		currentOffset += 6
+		var opensTo []string
+		if opensToCount != 0 {
+			opensTo = make([]string, opensToCount)
+			for i := 0; i < opensToCount; i++ {
+				opensTo[i] = c.readModuleB(currentOffset, buffer)
+				currentOffset += 2
+			}
+		}
+		moduleVisitor.VisitOpen(opens, opensFlags, opensTo...)
+	}
+
+	usesCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for usesCount > 0 {
+		moduleVisitor.VisitUse(c.readClass(currentOffset, buffer))
+		currentOffset += 2
+		usesCount--
+	}
+
+	providesCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for providesCount > 0 {
+		provides := c.readClass(currentOffset, buffer)
+		providesWithCount := c.readUnsignedShort(currentOffset + 2)
+		currentOffset += 4
+		providesWith := make([]string, providesWithCount)
+		for i := 0; i < providesWithCount; i++ {
+			providesWith[i] = c.readClass(currentOffset, buffer)
+			currentOffset += 2
+		}
+		moduleVisitor.VisitProvide(provides, providesWith...)
+		providesCount--
+	}
+
+	moduleVisitor.VisitEnd()
 }
 
 func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fieldInfoOffset int) int {

@@ -7,13 +7,13 @@ package asm
 type ClassVisitor interface {
 	Visit(version, access int, name, signature, superName string, interfaces []string)
 	VisitSource(source, debug string)
-	VisitModule(name string, access, version int) //should return modulevisitor
+	VisitModule(name string, access int, version string) ModuleVisitor
 	VisitOuterClass(owner, name, descriptor string)
 	VisitAnnotation(descriptor string, visible bool) AnnotationVisitor
 	VisitTypeAnnotation(typeRef, typePath int, descriptor string, visible bool) AnnotationVisitor //typePath : TypePath
 	VisitAttribute(attribute *Attribute)
 	VisitInnerClass(name, outerName, innerName string, access int)
-	VisitField(access int, name, descriptor, signature string, value interface{}) //should return FieldVisitor
+	VisitField(access int, name, descriptor, signature string, value interface{}) FieldVisitor
 	VisitMethod(access int, name, descriptor, signature string, exceptions []string) MethodVisitor
 	VisitEnd()
 }
