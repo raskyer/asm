@@ -32,5 +32,10 @@ func main() {
 				fmt.Println(name, signature, superName, interfaces)
 			},
 		},
+		OnVisitEnd: []func(){
+			func() {
+				fmt.Println("End")
+			},
+		},
 	}, 0)
 }

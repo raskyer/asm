@@ -1,9 +1,12 @@
 package main
 
-import "github.com/leaklessgfy/asm/asm"
+import (
+	"github.com/leaklessgfy/asm/asm"
+)
 
 type EventVisitor struct {
-	OnVisit []func(version, access int, name, signature, superName string, interfaces []string)
+	OnVisit    []func(version, access int, name, signature, superName string, interfaces []string)
+	OnVisitEnd []func()
 }
 
 func (e EventVisitor) Visit(version, access int, name, signature, superName string, interfaces []string) {
@@ -49,4 +52,7 @@ func (e EventVisitor) VisitMethod(access int, name, descriptor, signature string
 }
 
 func (e EventVisitor) VisitEnd() {
+	for _, callback := range e.OnVisitEnd {
+		callback()
+	}
 }
