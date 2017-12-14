@@ -1,6 +1,9 @@
 package asm
 
 import "errors"
+import "math"
+import "github.com/leaklessgfy/asm/asm/opcodes"
+import "github.com/leaklessgfy/asm/asm/constants"
 
 const FLAG_DEBUG_ONLY = 1
 const FLAG_JUMP_TARGET = 2
@@ -61,7 +64,7 @@ func (l *Label) addLineNumber(lineNumber int) {
 		l.otherLineNumbers[0]++
 		if otherLineNumberCount >= len(l.otherLineNumbers) {
 			newLineNumbers := make([]int, len(l.otherLineNumbers)+VALUES_CAPACITY_INCREMENT)
-			//System.arraycopy(l.otherLineNumbers, 0, newLineNumbers, 0, len(l.otherLineNumbers))
+			copy(newLineNumbers, l.otherLineNumbers) //System.arraycopy(l.otherLineNumbers, 0, newLineNumbers, 0, len(l.otherLineNumbers))
 			l.otherLineNumbers = newLineNumbers
 		}
 		l.otherLineNumbers[otherLineNumberCount] = lineNumber
@@ -78,4 +81,118 @@ func (l Label) accept(methodVisitor MethodVisitor, visitLineNumbers bool) {
 			}
 		}
 	}
+}
+
+func (l Label) put() {
+	//TODO
+}
+
+func (l *Label) addForwardReference(sourceInsnBytecodeOffset, referenceType, referenceHandle int) {
+	if l.values == nil {
+		l.values = make([]int, VALUES_CAPACITY_INCREMENT)
+	}
+	if int(l.valueCount) >= len(l.values) {
+		newValues := make([]int, len(l.values)+VALUES_CAPACITY_INCREMENT)
+		copy(newValues, l.values)
+		l.values = newValues
+	}
+	l.values[l.valueCount] = sourceInsnBytecodeOffset
+	l.valueCount++
+	l.values[l.valueCount] = referenceType | referenceHandle
+	l.valueCount++
+}
+
+func (l *Label) resolve(code []byte, bytecodeOffset int) bool {
+	l.flags |= FLAG_RESOLVED
+	l.bytecodeOffset = bytecodeOffset
+	hasAsmInstructions := false
+	for i := 0; i < int(l.valueCount); i += 2 {
+		sourceInsnBytecodeOffset := l.values[i]
+		reference := l.values[i+1]
+		relativeOffset := bytecodeOffset - sourceInsnBytecodeOffset
+		handle := reference & FORWARD_REFERENCE_HANDLE_MASK
+		if (reference & FORWARD_REFERENCE_HANDLE_MASK) == FORWARD_REFERENCE_TYPE_SHORT {
+			if relativeOffset < math.MinInt16 || relativeOffset > math.MaxInt16 {
+				opcode := code[sourceInsnBytecodeOffset] & 0xFF
+				if opcode < opcodes.IFNULL {
+					code[sourceInsnBytecodeOffset] = opcode + constants.ASM_OPCODE_DELTA
+				} else {
+					code[sourceInsnBytecodeOffset] = opcode + constants.ASM_IFNULL_OPCODE_DELTA
+				}
+				hasAsmInstructions = true
+			}
+			code[handle] = byte(relativeOffset >> 8) // >>> x3 ?
+			handle++
+			code[handle] = byte(relativeOffset)
+		} else {
+			code[handle] = byte(relativeOffset >> 14)
+			handle++
+			code[handle] = byte(relativeOffset >> 16)
+			handle++
+			code[handle] = byte(relativeOffset >> 8)
+			handle++
+			code[handle] = byte(relativeOffset)
+		}
+	}
+	return hasAsmInstructions
+}
+
+func (l *Label) markSubroutine(subroutineId int, numSubroutine int) {
+	listOfBlocksToProcess := l
+	listOfBlocksToProcess.nextListElement = EMPTY_LIST
+	for listOfBlocksToProcess != EMPTY_LIST {
+		basicBlock := listOfBlocksToProcess
+		listOfBlocksToProcess = listOfBlocksToProcess.nextListElement
+		basicBlock.nextListElement = nil
+		if !basicBlock.isInSubroutine(subroutineId) {
+			basicBlock.addToSubroutine(subroutineId, numSubroutine)
+			listOfBlocksToProcess = basicBlock.pushSuccessors(listOfBlocksToProcess)
+		}
+	}
+}
+
+func (l Label) addSubroutineRetSuccessors(subroutineCaller *Label, numSubroutine int) {
+	//TODO
+}
+
+func (l *Label) pushSuccessors(listOfLabelsToProcess *Label) *Label {
+	outgoingEdge := l.outgoingEdges
+	for outgoingEdge != nil {
+		isJsrTarget := (l.flags&FLAG_SUBROUTINE_CALLER) != 0 && outgoingEdge == outgoingEdge.nextEdge
+		if !isJsrTarget {
+			if outgoingEdge.successor.nextListElement == nil {
+				outgoingEdge.successor.nextListElement = listOfLabelsToProcess
+				listOfLabelsToProcess = outgoingEdge.successor
+			}
+		}
+		outgoingEdge = outgoingEdge.nextEdge
+	}
+	return listOfLabelsToProcess
+}
+
+func (l Label) isInSubroutine(subroutineId int) bool {
+	if (l.flags & FLAG_SUBROUTINE_BODY) != 0 {
+		return (l.values[subroutineId/32] & (1 << (uint(subroutineId) % 32))) != 0
+	}
+	return false
+}
+
+func (l Label) isInSameSubroutine(basicBlock *Label) bool {
+	if (l.flags&FLAG_SUBROUTINE_BODY) == 0 || (basicBlock.flags&FLAG_SUBROUTINE_BODY) == 0 {
+		return false
+	}
+	for i := 0; i < len(l.values); i++ {
+		if (l.values[i] & basicBlock.values[i]) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *Label) addToSubroutine(subroutineId int, numSubroutine int) {
+	if (l.flags & FLAG_SUBROUTINE_BODY) == 0 {
+		l.flags |= FLAG_SUBROUTINE_BODY
+		l.values = make([]int, numSubroutine/32+1)
+	}
+	l.values[subroutineId/32] |= (1 << (uint(subroutineId) % 32))
 }

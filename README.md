@@ -22,7 +22,7 @@ Second reason could be to provide different tools for JVM manipulation through G
 | Handle | 100% |
 | Attribute | ? |
 | Context | ? |
-| Label | ? |
+| Label | 80% |
 | TypeReference | ? |
 | Opcodes | ? |
 | Symbol | ? |
