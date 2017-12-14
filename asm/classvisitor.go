@@ -10,7 +10,7 @@ type ClassVisitor interface {
 	VisitModule(name string, access int, version string) ModuleVisitor
 	VisitOuterClass(owner, name, descriptor string)
 	VisitAnnotation(descriptor string, visible bool) AnnotationVisitor
-	VisitTypeAnnotation(typeRef, typePath int, descriptor string, visible bool) AnnotationVisitor //typePath : TypePath
+	VisitTypeAnnotation(typeRef int, typePath *TypePath, descriptor string, visible bool) AnnotationVisitor
 	VisitAttribute(attribute *Attribute)
 	VisitInnerClass(name, outerName, innerName string, access int)
 	VisitField(access int, name, descriptor, signature string, value interface{}) FieldVisitor

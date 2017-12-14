@@ -19,6 +19,7 @@ Second reason could be to provide different tools for JVM manipulation through G
 | FieldVisitor | 100% |
 | ModuleVisitor | 100% |
 | AnnotationVisitor | 100% |
+| Handle | 100% |
 | Attribute | ? |
 | Context | ? |
 | Label | ? |

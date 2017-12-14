@@ -19,7 +19,7 @@ type MethodVisitor interface {
 	VisitParameter(name string, access int)
 	VisitAnnotationDefault() AnnotationVisitor
 	VisitAnnotation(descriptor string, visible bool) AnnotationVisitor
-	VisitTypeAnnotation(typeRef int, typePath interface{}, descriptor string, visible bool) AnnotationVisitor //TypePath
+	VisitTypeAnnotation(typeRef int, typePath *TypePath, descriptor string, visible bool) AnnotationVisitor
 	VisitAnnotableParameterCount(parameterCount int, visible bool)
 	VisitParameterAnnotation(parameter int, descriptor string, visible bool) AnnotationVisitor
 	VisitAttribute(attribute *Attribute)
@@ -32,7 +32,7 @@ type MethodVisitor interface {
 	VisitFieldInsn(opcode int, owner, name, descriptor string)
 	VisitMethodInsn(opcode int, owner, name, descriptor string)
 	VisitMethodInsnB(opcode int, owner, name, descriptor string, isInterface bool)
-	VisitInvokeDynamicInsn(name, descriptor string, bootstrapMethodHande interface{}, bootstrapMethodArguments ...interface{}) //Handle
+	VisitInvokeDynamicInsn(name, descriptor string, bootstrapMethodHande *Handle, bootstrapMethodArguments ...interface{})
 	VisitJumpInsn(opcode int, label *Label)
 	VisitLabel(label *Label)
 	VisitLdcInsn(value interface{})
@@ -40,11 +40,11 @@ type MethodVisitor interface {
 	VisitTableSwitchInsn(min, max int, dflt *Label, labels ...*Label)
 	VisitLookupSwitchInsn(dflt *Label, keys []int, labels []*Label)
 	VisitMultiANewArrayInsn(descriptor string, numDimensions int)
-	VisitInsnAnnotation(typeRef int, typePath interface{}, descriptor string, visible bool) AnnotationVisitor //TypePath
+	VisitInsnAnnotation(typeRef int, typePath *TypePath, descriptor string, visible bool) AnnotationVisitor
 	VisitTryCatchBlock(start, end, handler *Label, typed string)
-	VisitTryCatchAnnotation(typeRef int, typePath interface{}, descriptor string, visible bool) AnnotationVisitor //TypePath
+	VisitTryCatchAnnotation(typeRef int, typePath *TypePath, descriptor string, visible bool) AnnotationVisitor
 	VisitLocalVariable(name, descriptor, signature string, start, end *Label, index int)
-	VisitLocalVariableAnnotation(typeRef int, typePath interface{}, start, end []*Label, index []int, descriptor string, visible bool) AnnotationVisitor //TypePath
+	VisitLocalVariableAnnotation(typeRef int, typePath *TypePath, start, end []*Label, index []int, descriptor string, visible bool) AnnotationVisitor
 	VisitLineNumber(line int, start *Label)
 	VisitMaxs(maxStack int, maxLocals int)
 	VisitEnd()

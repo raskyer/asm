@@ -33,7 +33,7 @@ func (s SimpleVisitor) VisitAnnotation(descriptor string, visible bool) asm.Anno
 	return nil
 }
 
-func (s SimpleVisitor) VisitTypeAnnotation(typeRef, typePath int, descriptor string, visible bool) asm.AnnotationVisitor {
+func (s SimpleVisitor) VisitTypeAnnotation(typeRef int, typePath *asm.TypePath, descriptor string, visible bool) asm.AnnotationVisitor {
 	return nil
 }
 

@@ -5,7 +5,7 @@ package asm
 // <tt>visitEnd</tt>.
 type FieldVisitor interface {
 	VisitAnnotation(descriptor string, visible bool) AnnotationVisitor
-	VisitTypeAnnotation(typeRef int, typePath interface{}, descriptor string, visible bool) AnnotationVisitor //TypePath
+	VisitTypeAnnotation(typeRef int, typePath *TypePath, descriptor string, visible bool) AnnotationVisitor
 	VisitAttribute(attribute *Attribute)
 	VisitEnd()
 }

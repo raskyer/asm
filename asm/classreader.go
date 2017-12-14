@@ -2,12 +2,12 @@ package asm
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/leaklessgfy/asm/asm/constants"
 	"github.com/leaklessgfy/asm/asm/frame"
 	"github.com/leaklessgfy/asm/asm/opcodes"
 	"github.com/leaklessgfy/asm/asm/symbol"
+	"github.com/leaklessgfy/asm/asm/typereference"
 )
 
 // ClassReader A parser to make a {@link ClassVisitor} visit a ClassFile structure, as defined in the Java
@@ -324,7 +324,7 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []At
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
-			currentAnnotationOffset = c.readElementValues(classVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath.(int), annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
+			currentAnnotationOffset = c.readElementValues(classVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
 			numAnnotations--
 		}
 	}
@@ -878,6 +878,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			break
 		default:
 			//throw error
+			break
 		}
 	}
 
@@ -1229,15 +1230,14 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 				name := c.readUTF8(nameAndTypeCpInfoOffset, charBuffer)
 				desc := c.readUTF8(nameAndTypeCpInfoOffset+2, charBuffer)
 				bootstrapMethodOffset := context.bootstrapMethodOffsets[c.readUnsignedShort(cpInfoOffset)]
-				var handle interface{}
-				//handle = (Handle) readConst(readUnsignedShort(bootstrapMethodOffset), charBuffer);
+				handle, _ := c.readConst(c.readUnsignedShort(bootstrapMethodOffset), charBuffer)
 				bootstrapMethodArguments := make([]interface{}, c.readUnsignedShort(bootstrapMethodOffset+2))
 				bootstrapMethodOffset += 4
 				for i := 0; i < len(bootstrapMethodArguments); i++ {
 					bootstrapMethodArguments[i], _ = c.readConst(c.readUnsignedShort(bootstrapMethodOffset), charBuffer)
 					bootstrapMethodOffset += 2
 				}
-				methodVisitor.VisitInvokeDynamicInsn(name, desc, handle, bootstrapMethodArguments)
+				methodVisitor.VisitInvokeDynamicInsn(name, desc, handle.(*Handle), bootstrapMethodArguments)
 				currentOffset += 5
 				break
 			}
@@ -1326,7 +1326,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 	if visibleTypeAnnotationOffsets != nil {
 		for i := 0; i < len(visibleTypeAnnotationOffsets); i++ {
 			targetType := c.readByte(visibleTypeAnnotationOffsets[i])
-			if targetType == LOCAL_VARIABLE || targetType == RESOURCE_VARIABLE {
+			if targetType == typereference.LOCAL_VARIABLE || targetType == typereference.RESOURCE_VARIABLE {
 				currentOffset = c.readTypeAnnotationTarget(context, visibleTypeAnnotationOffsets[i])
 				annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
 				currentOffset += 2
@@ -1347,7 +1347,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 	if invisibleTypeAnnotationOffsets != nil {
 		for i := 0; i < len(invisibleTypeAnnotationOffsets); i++ {
 			targetType := c.readByte(visibleTypeAnnotationOffsets[i])
-			if targetType == LOCAL_VARIABLE || targetType == RESOURCE_VARIABLE {
+			if targetType == typereference.LOCAL_VARIABLE || targetType == typereference.RESOURCE_VARIABLE {
 				currentOffset = c.readTypeAnnotationTarget(context, invisibleTypeAnnotationOffsets[i])
 				annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
 				currentOffset += 2
@@ -1404,7 +1404,7 @@ func (c ClassReader) readTypeAnnotations(methodVisitor MethodVisitor, context *C
 }
 
 func (c ClassReader) getTypeAnnotationBytecodeOffset(typeAnnotationOffsets []int, typeAnnotationIndex int) int {
-	if typeAnnotationOffsets == nil || typeAnnotationIndex >= len(typeAnnotationOffsets) || c.readByte(typeAnnotationOffsets[typeAnnotationIndex]) < INSTANCEOF {
+	if typeAnnotationOffsets == nil || typeAnnotationIndex >= len(typeAnnotationOffsets) || c.readByte(typeAnnotationOffsets[typeAnnotationIndex]) < typereference.INSTANCEOF {
 		return -1
 	}
 	return c.readUnsignedShort(typeAnnotationOffsets[typeAnnotationIndex] + 1)
@@ -1620,8 +1620,13 @@ func (c ClassReader) readConst(constantPoolEntryIndex int, charBuffer []rune) (i
 		name := c.readUTF8(nameAndTypeCpInfoOffset, charBuffer)
 		desc := c.readUTF8(nameAndTypeCpInfoOffset+2, charBuffer)
 		itf := c.b[referenceCpInfoOffset-1] == byte(symbol.CONSTANT_INTERFACE_METHODREF_TAG)
-		fmt.Println(referenceKind, owner, name, desc, itf)
-		return 0, nil //new Handle(referenceKind, owner, name, desc, itf)
+		return &Handle{
+			tag:         int(referenceKind),
+			owner:       owner,
+			name:        name,
+			descriptor:  desc,
+			isInterface: itf,
+		}, nil
 	default:
 		return nil, errors.New("Assertion Error")
 	}

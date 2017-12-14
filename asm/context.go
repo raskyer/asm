@@ -11,7 +11,7 @@ type Context struct {
 	currentMethodDescriptor                    string
 	currentMethodLabels                        []*Label
 	currentTypeAnnotationTarget                int
-	currentTypeAnnotationTargetPath            interface{} //TypePath
+	currentTypeAnnotationTargetPath            *TypePath
 	currentLocalVariableAnnotationRangeStarts  []*Label
 	currentLocalVariableAnnotationRangeEnds    []*Label
 	currentLocalVariableAnnotationRangeIndices []int

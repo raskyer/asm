@@ -30,7 +30,7 @@ type Label struct {
 	inputStackSize   int16
 	outputStackSize  int16
 	outputStackMax   int16
-	frame            interface{} //Frame
+	frame            *Frame
 	nextBasicBlock   *Label
 	outgoingEdges    interface{} //Edge
 	nextListElement  *Label
@@ -47,7 +47,7 @@ func (l Label) getCanonicalInstance() *Label {
 	if l.frame == nil {
 		return &l
 	}
-	return nil //l.frame.owner
+	return l.frame.owner
 }
 
 func (l *Label) addLineNumber(lineNumber int) {
