@@ -32,7 +32,7 @@ type Label struct {
 	outputStackMax   int16
 	frame            *Frame
 	nextBasicBlock   *Label
-	outgoingEdges    interface{} //Edge
+	outgoingEdges    *Edge
 	nextListElement  *Label
 }
 

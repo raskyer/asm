@@ -158,11 +158,11 @@ func (c ClassReader) GetInterfaces() []string {
 
 // Accept Makes the given visitor visit the JVMS ClassFile structure passed to the constructor of this {@link ClassReader}.
 func (c ClassReader) Accept(classVisitor ClassVisitor, parsingOptions int) {
-	c.AcceptB(classVisitor, make([]Attribute, 0), parsingOptions)
+	c.AcceptB(classVisitor, make([]*Attribute, 0), parsingOptions)
 }
 
 // AcceptB Makes the given visitor visit the JVMS ClassFile structure passed to the constructor of this {@link ClassReader}.
-func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []Attribute, parsingOptions int) {
+func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*Attribute, parsingOptions int) {
 	context := &Context{
 		attributePrototypes: attributePrototypes,
 		parsingOptions:      parsingOptions,
@@ -1480,7 +1480,7 @@ func (c ClassReader) getFirstAttributeOffset() int {
 	return currentOffset + 2
 }
 
-func (c ClassReader) readAttribute(attributePrototypes []Attribute, typed string, offset int, length int, charBuffer []rune, codeAttributeOffset int, labels []*Label) *Attribute {
+func (c ClassReader) readAttribute(attributePrototypes []*Attribute, typed string, offset int, length int, charBuffer []rune, codeAttributeOffset int, labels []*Label) *Attribute {
 	for i := 0; i < len(attributePrototypes); i++ {
 		if attributePrototypes[i].typed == typed {
 			return attributePrototypes[i].read(&c, offset, length, charBuffer, codeAttributeOffset, labels)

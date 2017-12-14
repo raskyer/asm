@@ -2,7 +2,7 @@ package asm
 
 // Context information about a class being parsed in a {@link ClassReader}.
 type Context struct {
-	attributePrototypes                        []Attribute
+	attributePrototypes                        []*Attribute
 	parsingOptions                             int
 	charBuffer                                 []rune
 	bootstrapMethodOffsets                     []int
