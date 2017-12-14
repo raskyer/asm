@@ -12,6 +12,7 @@ Second reason could be to provide different tools for JVM manipulation through G
 ## Progress
 
 | CLASS | PROGRESS % |
+| ----- | ---------- |
 | ClassReader | 60% |
 | ClassVisitor | 100% |
 | MethodVisitor | 100% |
