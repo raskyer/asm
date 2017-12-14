@@ -461,20 +461,322 @@ func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, mod
 }
 
 func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fieldInfoOffset int) int {
-	//TODO
-	return 0
+	charBuffer := context.charBuffer
+	currentOffset := fieldInfoOffset
+	accessFlags := c.readUnsignedShort(currentOffset)
+	name := c.readUTF8(currentOffset+2, charBuffer)
+	descriptor := c.readUTF8(currentOffset+4, charBuffer)
+	currentOffset += 6
+
+	var constantValue interface{}
+	var signature string
+
+	runtimeVisibleAnnotationsOffset := 0
+	runtimeInvisibleAnnotationsOffset := 0
+	runtimeVisibleTypeAnnotationsOffset := 0
+	runtimeInvisibleTypeAnnotationsOffset := 0
+	var attributes *Attribute
+
+	attributesCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+
+	for attributesCount > 0 {
+		attributeName := c.readUTF8(currentOffset, charBuffer)
+		attributeLength := c.readInt(currentOffset + 2)
+		currentOffset += 6
+
+		switch attributeName {
+		case "ConstantValue":
+			constantvalueIndex := c.readUnsignedShort(currentOffset)
+			if constantvalueIndex != 0 {
+				constantValue, _ = c.readConst(constantvalueIndex, charBuffer)
+			}
+			break
+		case "Signature":
+			signature = c.readUTF8(currentOffset, charBuffer)
+			break
+		case "Deprecated":
+			accessFlags |= opcodes.ACC_DEPRECATED
+			break
+		case "Synthetic":
+			accessFlags |= opcodes.ACC_SYNTHETIC
+			break
+		case "RuntimeVisibleAnnotations":
+			runtimeVisibleAnnotationsOffset = currentOffset
+			break
+		case "RuntimeVisibleTypeAnnotations":
+			runtimeVisibleTypeAnnotationsOffset = currentOffset
+			break
+		case "RuntimeInvisibleAnnotations":
+			runtimeInvisibleAnnotationsOffset = currentOffset
+			break
+		case "RuntimeInvisibleTypeAnnotations":
+			runtimeInvisibleTypeAnnotationsOffset = currentOffset
+			break
+		default:
+			attribute := c.readAttribute(context.attributePrototypes, attributeName, currentOffset, attributeLength, charBuffer, -1, nil)
+			attribute.nextAttribute = attributes
+			attributes = attribute
+			break
+		}
+		currentOffset += attributeLength
+		attributesCount--
+	}
+
+	fieldVisitor := classVisitor.VisitField(accessFlags, name, descriptor, signature, constantValue)
+	if fieldVisitor == nil {
+		return currentOffset
+	}
+
+	if runtimeVisibleAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeVisibleAnnotationsOffset)
+		currentAnnotationOffset := runtimeVisibleAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			currentAnnotationOffset = c.readElementValues(fieldVisitor.VisitAnnotation(annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeInvisibleAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
+		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			currentAnnotationOffset = c.readElementValues(fieldVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeVisibleTypeAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeVisibleTypeAnnotationsOffset)
+		currentAnnotationOffset := runtimeVisibleTypeAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			annotationVisitor := fieldVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, true)
+			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeInvisibleTypeAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeInvisibleTypeAnnotationsOffset)
+		currentAnnotationOffset := runtimeInvisibleTypeAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			annotationVisitor := fieldVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false)
+			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	for attributes != nil {
+		nextAttribute := attributes.nextAttribute
+		attributes.nextAttribute = nil
+		fieldVisitor.VisitAttribute(attributes)
+		attributes = nextAttribute
+	}
+
+	fieldVisitor.VisitEnd()
+	return currentOffset
 }
 
 func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, methodInfoOffset int) int {
-	//TODO
-	return 0
+	charBuffer := context.charBuffer
+	currentOffset := methodInfoOffset
+	context.currentMethodAccessFlags = c.readUnsignedShort(currentOffset)
+	context.currentMethodName = c.readUTF8(currentOffset+2, charBuffer)
+	context.currentMethodDescriptor = c.readUTF8(currentOffset+4, charBuffer)
+	currentOffset += 6
+
+	codeOffset := 0
+	exceptionsOffset := 0
+	var exceptions []string
+	signature := 0
+	runtimeVisibleAnnotationsOffset := 0
+	runtimeInvisibleAnnotationsOffset := 0
+	runtimeVisibleParameterAnnotationsOffset := 0
+	runtimeInvisibleParameterAnnotationsOffset := 0
+	runtimeVisibleTypeAnnotationsOffset := 0
+	runtimeInvisibleTypeAnnotationsOffset := 0
+	annotationDefaultOffset := 0
+	methodParametersOffset := 0
+	var attributes *Attribute
+
+	attributesCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for attributesCount > 0 {
+		attributeName := c.readUTF8(currentOffset, charBuffer)
+		attributeLength := c.readInt(currentOffset + 2)
+		currentOffset += 6
+
+		switch attributeName {
+		case "Code":
+			codeOffset = currentOffset
+			break
+		case "Exceptions":
+			exceptionsOffset = currentOffset
+			exceptions = make([]string, c.readUnsignedShort(exceptionsOffset))
+			currentExceptionOffset := exceptionsOffset + 2
+			for i := 0; i < len(exceptions); i++ {
+				exceptions[i] = c.readClass(currentExceptionOffset, charBuffer)
+				currentExceptionOffset += 2
+			}
+			break
+		case "Signature":
+			signature = c.readUnsignedShort(currentOffset)
+			break
+		case "Deprecated":
+			context.currentMethodAccessFlags |= opcodes.ACC_DEPRECATED
+			break
+		case "RuntimeVisibleAnnotations":
+			runtimeVisibleAnnotationsOffset = currentOffset
+			break
+		case "RuntimeVisibleTypeAnnotations":
+			runtimeVisibleTypeAnnotationsOffset = currentOffset
+			break
+		case "AnnotationDefault":
+			annotationDefaultOffset = currentOffset
+			break
+		case "Synthetic":
+			context.currentMethodAccessFlags |= opcodes.ACC_SYNTHETIC
+			break
+		case "RuntimeInvisibleAnnotations":
+			runtimeInvisibleAnnotationsOffset = currentOffset
+			break
+		case "RuntimeInvisibleTypeAnnotations":
+			runtimeInvisibleTypeAnnotationsOffset = currentOffset
+			break
+		case "RuntimeVisibleParameterAnnotations":
+			runtimeVisibleParameterAnnotationsOffset = currentOffset
+			break
+		case "RuntimeInvisibleParameterAnnotations":
+			runtimeInvisibleParameterAnnotationsOffset = currentOffset
+			break
+		case "MethodParameters":
+			methodParametersOffset = currentOffset
+			break
+		default:
+			attribute := c.readAttribute(context.attributePrototypes, attributeName, currentOffset, attributeLength, charBuffer, -1, nil)
+			attribute.nextAttribute = attributes
+			attributes = attribute
+			break
+		}
+		currentOffset += attributeLength
+		attributesCount--
+	}
+
+	var sig string
+	if signature != 0 {
+		sig = c.readUTF(signature, charBuffer)
+	}
+	methodVisitor := classVisitor.VisitMethod(context.currentMethodAccessFlags, context.currentMethodName, context.currentMethodDescriptor, sig, exceptions)
+	if methodVisitor == nil {
+		return currentOffset
+	}
+
+	/* MethodWriter instanceof ? */
+
+	if methodParametersOffset != 0 {
+		parametersCount := c.readByte(methodParametersOffset)
+		currentParameterOffset := methodParametersOffset + 1
+		for parametersCount > 0 {
+			methodVisitor.VisitParameter(c.readUTF8(currentParameterOffset, charBuffer), c.readUnsignedShort(currentParameterOffset+2))
+			currentParameterOffset += 4
+			parametersCount--
+		}
+	}
+
+	if annotationDefaultOffset != 0 {
+		annotationVisitor := methodVisitor.VisitAnnotationDefault()
+		c.readElementValue(annotationVisitor, annotationDefaultOffset, "", charBuffer)
+		if annotationVisitor != nil {
+			annotationVisitor.VisitEnd()
+		}
+	}
+
+	if runtimeVisibleAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeVisibleAnnotationsOffset)
+		currentAnnotationOffset := runtimeVisibleAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			currentAnnotationOffset = c.readElementValues(methodVisitor.VisitAnnotation(annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeInvisibleAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
+		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			currentAnnotationOffset = c.readElementValues(methodVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeVisibleTypeAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeVisibleTypeAnnotationsOffset)
+		currentAnnotationOffset := runtimeVisibleTypeAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			annotationVisitor := methodVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, true)
+			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
+
+	if runtimeInvisibleTypeAnnotationsOffset != 0 {
+		numAnnotations := c.readUnsignedShort(runtimeInvisibleTypeAnnotationsOffset)
+		currentAnnotationOffset := runtimeInvisibleTypeAnnotationsOffset + 2
+		for numAnnotations > 0 {
+			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
+			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+			currentAnnotationOffset += 2
+			annotationVisitor := methodVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false)
+			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
+		}
+	}
+
+	if runtimeVisibleParameterAnnotationsOffset != 0 {
+		c.readParameterAnnotations(methodVisitor, context, runtimeVisibleParameterAnnotationsOffset, true)
+	}
+
+	if runtimeInvisibleParameterAnnotationsOffset != 0 {
+		c.readParameterAnnotations(methodVisitor, context, runtimeInvisibleParameterAnnotationsOffset, false)
+	}
+
+	for attributes != nil {
+		nextAttribute := attributes.nextAttribute
+		attributes.nextAttribute = nil
+		methodVisitor.VisitAttribute(attributes)
+		attributes = nextAttribute
+	}
+
+	if codeOffset != 0 {
+		methodVisitor.VisitCode()
+		c.readCode(methodVisitor, context, codeOffset)
+	}
+
+	methodVisitor.VisitEnd()
+	return currentOffset
 }
 
 // ----------------------------------------------------------------------------------------------
 // Methods to parse a Code attribute
 // ----------------------------------------------------------------------------------------------
 
-func (c ClassReader) readCode(methodVisitor MethodVisitor, contexnt *Context, codeOffset int) {
+func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, codeOffset int) {
 	//TODO
 }
 
@@ -673,10 +975,13 @@ func (c ClassReader) readUTFB(utfOffset int, utfLength int, charBuffer []rune) s
 			d := ((currentByte & 0xF) << 12) + ((b[currentOffset] & 0x3F) << 6)
 			currentOffset++
 			charBuffer[strLength] = rune((d + (b[currentOffset] & 0x3F)))
+			currentOffset++
 			strLength++
 		}
 	}
-	return string(charBuffer)
+	str := make([]rune, strLength)
+	copy(str, charBuffer[0:strLength])
+	return string(str)
 }
 
 func (c ClassReader) readStringish(offset int, charBuffer []rune) string {

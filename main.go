@@ -26,16 +26,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	reader.Accept(&EventVisitor{
-		OnVisit: []func(version, access int, name, signature, superName string, interfaces []string){
-			func(version, access int, name, signature, superName string, interfaces []string) {
-				fmt.Println(name, signature, superName, interfaces)
-			},
+	reader.Accept(&SimpleVisitor{
+		OnVisit: func(version, access int, name, signature, superName string, interfaces []string) {
+			fmt.Println(name, signature, superName, interfaces)
 		},
-		OnVisitEnd: []func(){
-			func() {
-				fmt.Println("End")
-			},
+		OnVisitMethod: func(access int, name, descriptor, signature string, exceptions []string) asm.MethodVisitor {
+			fmt.Println(name)
+			return nil
 		},
-	}, 0)
+		OnVisitEnd: func() {
+			fmt.Println("End")
+		},
+	}, asm.EXPAND_FRAMS)
 }
