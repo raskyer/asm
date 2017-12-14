@@ -1607,11 +1607,11 @@ func (c ClassReader) readConst(constantPoolEntryIndex int, charBuffer []rune) (i
 	case byte(symbol.CONSTANT_DOUBLE_TAG):
 		return float64(c.readLong(cpInfoOffset)), nil
 	case byte(symbol.CONSTANT_CLASS_TAG):
-		return 0, nil //Type.getObjectType(c.readUTF8(cpInfoOffset, charBuffer))
+		return getObjectType(c.readUTF8(cpInfoOffset, charBuffer)), nil
 	case byte(symbol.CONSTANT_STRING_TAG):
 		return c.readUTF8(cpInfoOffset, charBuffer), nil
 	case byte(symbol.CONSTANT_METHOD_TYPE_TAG):
-		return 0, nil //Type.getMethodType(c.readUTF8(cpInfoOffset, charBuffer))
+		return getMethodType(c.readUTF8(cpInfoOffset, charBuffer)), nil
 	case byte(symbol.CONSTANT_METHOD_HANDLE_TAG):
 		referenceKind := c.readByte(cpInfoOffset)
 		referenceCpInfoOffset := c.cpInfoOffsets[c.readUnsignedShort(cpInfoOffset+1)]
