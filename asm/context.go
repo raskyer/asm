@@ -9,11 +9,11 @@ type Context struct {
 	currentMethodAccessFlags                   int
 	currentMethodName                          string
 	currentMethodDescriptor                    string
-	currentMethodLabels                        []interface{} //[]Label
+	currentMethodLabels                        []*Label
 	currentTypeAnnotationTarget                int
-	currentTypeAnnotationTargetPath            interface{}   //TypePath
-	currentLocalVariableAnnotationRangeStarts  []interface{} //[]Label
-	currentLocalVariableAnnotationRangeEnds    []interface{} //[]Label
+	currentTypeAnnotationTargetPath            interface{} //TypePath
+	currentLocalVariableAnnotationRangeStarts  []*Label
+	currentLocalVariableAnnotationRangeEnds    []*Label
 	currentLocalVariableAnnotationRangeIndices []int
 	currentFrameOffset                         int
 	currentFrameType                           int

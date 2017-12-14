@@ -777,7 +777,30 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 // ----------------------------------------------------------------------------------------------
 
 func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, codeOffset int) {
-	//TODO
+	currentOffset := codeOffset
+	b := c.b
+	charBuffer := context.charBuffer
+	maxStack := c.readUnsignedShort(currentOffset)
+	maxLocals := c.readUnsignedShort(currentOffset + 2)
+	codeLength := c.readInt(currentOffset + 4)
+	currentOffset += 8
+
+	bytecodeStartOffset := currentOffset
+	bytecodeEndOffset := currentOffset + codeLength
+	context.currentMethodLabels = make([]*Label, codeLength+1)
+	labels := context.currentMethodLabels
+
+	for currentOffset < bytecodeEndOffset {
+		bytecodeOffset := currentOffset - bytecodeStartOffset
+		opcode := b[currentOffset] & 0xFF
+		switch opcode {
+		case opcodes.NOP, opcodes.ACONST_NULL, opcodes.ICONST_M1, opcodes.ICONST_0, opcodes.ICONST_1, opcodes.ICONST_2,
+			opcodes.ICONST_3, opcodes.ICONST_4, opcodes.ICONST_5, opcodes.LCONST_0, opcodes.LCONST_1, opcodes.FCONST_0, opcodes.FCONST_1,
+			opcodes.FCONST_2, opcodes.DCONST_0, opcodes.DCONST_1:
+			currentOffset++
+			break
+		}
+	}
 }
 
 func (c ClassReader) readLabel(bytecodeOffset int, labels []*Label) *Label {
