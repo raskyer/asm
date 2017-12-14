@@ -30,6 +30,10 @@ func main() {
 		OnVisit: func(version, access int, name, signature, superName string, interfaces []string) {
 			fmt.Println(name, signature, superName, interfaces)
 		},
+		OnVisitField: func(access int, name, descriptor, signature string, value interface{}) asm.FieldVisitor {
+			fmt.Println(name)
+			return nil
+		},
 		OnVisitMethod: func(access int, name, descriptor, signature string, exceptions []string) asm.MethodVisitor {
 			fmt.Println(name)
 			return nil
