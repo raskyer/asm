@@ -51,10 +51,6 @@ const T_BYTE = 8
 const T_SHORT = 9
 const T_INT = 10
 const T_LONG = 11
-
-// Possible values for the reference_kind field of CONSTANT_MethodHandle_info structures.
-// See https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4.8.
-
 const H_GETFIELD = 1
 const H_GETSTATIC = 2
 const H_PUTFIELD = 3
@@ -64,38 +60,12 @@ const H_INVOKESTATIC = 6
 const H_INVOKESPECIAL = 7
 const H_NEWINVOKESPECIAL = 8
 const H_INVOKEINTERFACE = 9
-
-// ASM specific stack map frame types, used in {@link ClassVisitor#visitFrame}.
-
-/** An expanded frame. See {@link ClassReader#EXPAND_FRAMES}. */
 const F_NEW = -1
-
-/** A compressed frame with complete frame data. */
 const F_FULL = 0
-
-/**
- * A compressed frame where locals are the same as the locals in the previous frame, except that
- * additional 1-3 locals are defined, and with an empty stack.
- */
 const F_APPEND = 1
-
-/**
- * A compressed frame where locals are the same as the locals in the previous frame, except that
- * the last 1-3 locals are absent and with an empty stack.
- */
 const F_CHOP = 2
-
-/**
- * A compressed frame with exactly the same locals as the previous frame and with an empty stack.
- */
 const F_SAME = 3
-
-/**
-* A compressed frame with exactly the same locals as the previous frame and with a single value
-* on the stack.
- */
 const F_SAME1 = 4
-
 const NOP = 0               // visitInsn
 const ACONST_NULL = 1       // -
 const ICONST_M1 = 2         // -

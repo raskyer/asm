@@ -1,0 +1,58 @@
+package frame
+
+const (
+	SAME_FRAME                              = 0
+	SAME_LOCALS_1_STACK_ITEM_FRAME          = 64
+	RESERVED                                = 128
+	SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED = 247
+	CHOP_FRAME                              = 248
+	SAME_FRAME_EXTENDED                     = 251
+	APPEND_FRAME                            = 252
+	FULL_FRAME                              = 255
+
+	ITEM_TOP                = 0
+	ITEM_INTEGER            = 1
+	ITEM_FLOAT              = 2
+	ITEM_DOUBLE             = 3
+	ITEM_LONG               = 4
+	ITEM_NULL               = 5
+	ITEM_UNINITIALIZED_THIS = 6
+	ITEM_OBJECT             = 7
+	ITEM_UNINITIALIZED      = 8
+
+	ITEM_ASM_BOOLEAN = 9
+	ITEM_ASM_BYTE    = 10
+	ITEM_ASM_CHAR    = 11
+	ITEM_ASM_SHORT   = 12
+
+	DIM_MASK   = 0xF0000000
+	KIND_MASK  = 0x0F000000
+	FLAGS_MASK = 0x00F00000
+	VALUE_MASK = 0x000FFFFF
+
+	DIM_SHIFT = 28
+
+	ARRAY_OF = +1 << DIM_SHIFT
+
+	ELEMENT_OF = -1 << DIM_SHIFT
+
+	CONSTANT_KIND      = 0x01000000
+	REFERENCE_KIND     = 0x02000000
+	UNINITIALIZED_KIND = 0x03000000
+	LOCAL_KIND         = 0x04000000
+	STACK_KIND         = 0x05000000
+
+	TOP_IF_LONG_OR_DOUBLE_FLAG = 0x00100000 & FLAGS_MASK
+
+	TOP                = CONSTANT_KIND | ITEM_TOP
+	BOOLEAN            = CONSTANT_KIND | ITEM_ASM_BOOLEAN
+	BYTE               = CONSTANT_KIND | ITEM_ASM_BYTE
+	CHAR               = CONSTANT_KIND | ITEM_ASM_CHAR
+	SHORT              = CONSTANT_KIND | ITEM_ASM_SHORT
+	INTEGER            = CONSTANT_KIND | ITEM_INTEGER
+	FLOAT              = CONSTANT_KIND | ITEM_FLOAT
+	LONG               = CONSTANT_KIND | ITEM_LONG
+	DOUBLE             = CONSTANT_KIND | ITEM_DOUBLE
+	NULL               = CONSTANT_KIND | ITEM_NULL
+	UNINITIALIZED_THIS = CONSTANT_KIND | ITEM_UNINITIALIZED_THIS
+)

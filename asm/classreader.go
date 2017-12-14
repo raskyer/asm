@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/leaklessgfy/asm/asm/constants"
+	"github.com/leaklessgfy/asm/asm/frame"
 	"github.com/leaklessgfy/asm/asm/opcodes"
 	"github.com/leaklessgfy/asm/asm/symbol"
 )
@@ -794,13 +796,583 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 		bytecodeOffset := currentOffset - bytecodeStartOffset
 		opcode := b[currentOffset] & 0xFF
 		switch opcode {
-		case opcodes.NOP, opcodes.ACONST_NULL, opcodes.ICONST_M1, opcodes.ICONST_0, opcodes.ICONST_1, opcodes.ICONST_2,
-			opcodes.ICONST_3, opcodes.ICONST_4, opcodes.ICONST_5, opcodes.LCONST_0, opcodes.LCONST_1, opcodes.FCONST_0, opcodes.FCONST_1,
-			opcodes.FCONST_2, opcodes.DCONST_0, opcodes.DCONST_1:
+		case constants.NOP, constants.ACONST_NULL, constants.ICONST_M1, constants.ICONST_0, constants.ICONST_1, constants.ICONST_2,
+			constants.ICONST_3, constants.ICONST_4, constants.ICONST_5, constants.LCONST_0, constants.LCONST_1, constants.FCONST_0, constants.FCONST_1,
+			constants.FCONST_2, constants.DCONST_0, constants.DCONST_1, constants.IALOAD, constants.LALOAD, constants.FALOAD, constants.DALOAD,
+			constants.AALOAD, constants.BALOAD, constants.CALOAD, constants.SALOAD, constants.IASTORE, constants.LASTORE, constants.FASTORE, constants.DASTORE,
+			constants.AASTORE, constants.BASTORE, constants.CASTORE, constants.SASTORE, constants.POP, constants.POP2, constants.DUP, constants.DUP_X1, constants.DUP_X2,
+			constants.DUP2, constants.DUP2_X1, constants.DUP2_X2, constants.SWAP, constants.IADD, constants.LADD, constants.FADD, constants.DADD, constants.ISUB,
+			constants.LSUB, constants.FSUB, constants.DSUB, constants.IMUL, constants.LMUL, constants.FMUL, constants.DMUL, constants.IDIV, constants.LDIV, constants.FDIV,
+			constants.DDIV, constants.IREM, constants.LREM, constants.FREM, constants.DREM, constants.INEG, constants.LNEG, constants.FNEG, constants.DNEG, constants.ISHL,
+			constants.LSHL, constants.ISHR, constants.LSHR, constants.IUSHR, constants.LUSHR, constants.IAND, constants.LAND, constants.IOR, constants.LOR, constants.IXOR,
+			constants.LXOR, constants.I2L, constants.I2F, constants.I2D, constants.L2I, constants.L2F, constants.L2D, constants.F2I, constants.F2L, constants.F2D,
+			constants.D2I, constants.D2L, constants.D2F, constants.I2B, constants.I2C, constants.I2S, constants.LCMP, constants.FCMPL, constants.FCMPG, constants.DCMPL,
+			constants.DCMPG, constants.IRETURN, constants.LRETURN, constants.FRETURN, constants.DRETURN, constants.ARETURN, constants.RETURN, constants.ARRAYLENGTH,
+			constants.ATHROW, constants.MONITORENTER, constants.MONITOREXIT, constants.ILOAD_0, constants.ILOAD_1, constants.ILOAD_2, constants.ILOAD_3, constants.LLOAD_0,
+			constants.LLOAD_1, constants.LLOAD_2, constants.LLOAD_3, constants.FLOAD_0, constants.FLOAD_1, constants.FLOAD_2, constants.FLOAD_3, constants.DLOAD_0,
+			constants.DLOAD_1, constants.DLOAD_2, constants.DLOAD_3, constants.ALOAD_0, constants.ALOAD_1, constants.ALOAD_2, constants.ALOAD_3, constants.ISTORE_0,
+			constants.ISTORE_1, constants.ISTORE_2, constants.ISTORE_3, constants.LSTORE_0, constants.LSTORE_1, constants.LSTORE_2, constants.LSTORE_3, constants.FSTORE_0,
+			constants.FSTORE_1, constants.FSTORE_2, constants.FSTORE_3, constants.DSTORE_0, constants.DSTORE_1, constants.DSTORE_2, constants.DSTORE_3, constants.ASTORE_0,
+			constants.ASTORE_1, constants.ASTORE_2, constants.ASTORE_3:
 			currentOffset++
 			break
+		case constants.IFEQ, constants.IFNE, constants.IFLT, constants.IFGE, constants.IFGT, constants.IFLE, constants.IF_ICMPEQ, constants.IF_ICMPNE, constants.IF_ICMPLT,
+			constants.IF_ICMPGE, constants.IF_ICMPGT, constants.IF_ICMPLE, constants.IF_ACMPEQ, constants.IF_ACMPNE, constants.GOTO, constants.JSR, constants.IFNULL,
+			constants.IFNONNULL:
+			c.createLabel(bytecodeOffset+int(c.readShort(currentOffset+1)), labels)
+			currentOffset += 3
+			break
+		case constants.ASM_IFEQ, constants.ASM_IFNE, constants.ASM_IFLT, constants.ASM_IFGE, constants.ASM_IFGT, constants.ASM_IFLE, constants.ASM_IF_ICMPEQ,
+			constants.ASM_IF_ICMPNE, constants.ASM_IF_ICMPLT, constants.ASM_IF_ICMPGE, constants.ASM_IF_ICMPGT, constants.ASM_IF_ICMPLE, constants.ASM_IF_ACMPEQ,
+			constants.ASM_IF_ACMPNE, constants.ASM_GOTO, constants.ASM_JSR, constants.ASM_IFNULL, constants.ASM_IFNONNULL:
+			c.createLabel(bytecodeOffset+c.readUnsignedShort(currentOffset+1), labels)
+			currentOffset += 3
+			break
+		case constants.GOTO_W, constants.JSR_W, constants.ASM_GOTO_W:
+			c.createLabel(bytecodeOffset+c.readInt(currentOffset+1), labels)
+			currentOffset += 5
+			break
+		case constants.WIDE:
+			if (b[currentOffset+1] & 0xFF) == opcodes.IINC {
+				currentOffset += 6
+			} else {
+				currentOffset += 4
+			}
+			break
+		case constants.TABLESWITCH:
+			currentOffset += 4 - (bytecodeOffset & 3)
+			c.createLabel(bytecodeOffset+c.readInt(currentOffset), labels)
+			numTableEntries := c.readInt(currentOffset+8) - c.readInt(currentOffset+4) + 1
+			currentOffset += 12
+			for numTableEntries > 0 {
+				c.createLabel(bytecodeOffset+c.readInt(currentOffset), labels)
+				currentOffset += 4
+				numTableEntries--
+			}
+			break
+		case constants.LOOKUPSWITCH:
+			currentOffset += 4 - (bytecodeOffset & 3)
+			c.createLabel(bytecodeOffset+c.readInt(currentOffset), labels)
+			numSwitchCases := c.readInt(currentOffset + 4)
+			currentOffset += 8
+			for numSwitchCases > 0 {
+				c.createLabel(bytecodeOffset+c.readInt(currentOffset+4), labels)
+				currentOffset += 8
+				numSwitchCases--
+			}
+			break
+		case constants.ILOAD, constants.LLOAD, constants.FLOAD, constants.DLOAD, constants.ALOAD, constants.ISTORE,
+			constants.LSTORE, constants.FSTORE, constants.DSTORE, constants.ASTORE, constants.RET, constants.BIPUSH, constants.NEWARRAY, constants.LDC:
+			currentOffset += 2
+			break
+		case constants.SIPUSH, constants.LDC_W, constants.LDC2_W, constants.GETSTATIC, constants.PUTSTATIC, constants.GETFIELD, constants.PUTFIELD,
+			constants.INVOKEVIRTUAL, constants.INVOKESPECIAL, constants.INVOKESTATIC, constants.NEW, constants.ANEWARRAY, constants.CHECKCAST, constants.INSTANCEOF,
+			constants.IINC:
+			currentOffset += 3
+			break
+		case constants.INVOKEINTERFACE, constants.INVOKEDYNAMIC:
+			currentOffset += 5
+			break
+		case constants.MULTIANEWARRAY:
+			currentOffset += 4
+			break
+		default:
+			//throw error
 		}
 	}
+
+	{
+		exceptionTableLength := c.readUnsignedShort(currentOffset)
+		currentOffset += 2
+		for exceptionTableLength > 0 {
+			start := c.createLabel(c.readUnsignedShort(currentOffset), labels)
+			end := c.createLabel(c.readUnsignedShort(currentOffset+2), labels)
+			handler := c.createLabel(c.readUnsignedShort(currentOffset+4), labels)
+			catchType := c.readUTF8(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+6)], charBuffer)
+			currentOffset += 8
+			methodVisitor.VisitTryCatchBlock(start, end, handler, catchType)
+			exceptionTableLength--
+		}
+	}
+
+	stackMapFrameOffset := 0
+	stackMapTableEndOffset := 0
+	compressedFrames := true
+	localVariableTableOffset := 0
+	localVariableTypeTableOffset := 0
+	var visibleTypeAnnotationOffsets []int
+	var invisibleTypeAnnotationOffsets []int
+	var attributes *Attribute
+
+	attributesCount := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	for attributesCount > 0 {
+		attributeName := c.readUTF8(currentOffset, charBuffer)
+		attributeLength := c.readInt(currentOffset + 2)
+		currentOffset += 6
+
+		switch attributeName {
+		case "LocalVariableTable":
+			if (context.parsingOptions & SKIP_DEBUG) == 0 {
+				localVariableTableOffset = currentOffset
+				localVariableTableLength := c.readUnsignedShort(currentOffset)
+				currentOffset += 2
+				for localVariableTableLength > 0 {
+					startPc := c.readUnsignedShort(currentOffset)
+					c.createDebugLabel(startPc, labels)
+					length := c.readUnsignedShort(currentOffset + 2)
+					c.createDebugLabel(startPc+length, labels)
+					currentOffset += 10
+					localVariableTableLength--
+				}
+				continue
+			}
+			break
+		case "LocalVariableTypeTable":
+			localVariableTypeTableOffset = currentOffset
+			break
+		case "LineNumberTable":
+			if (context.parsingOptions & SKIP_DEBUG) == 0 {
+				lineNumberTableLength := c.readUnsignedShort(currentOffset)
+				currentOffset += 2
+				for lineNumberTableLength > 0 {
+					startPc := c.readUnsignedShort(currentOffset)
+					lineNumber := c.readUnsignedShort(currentOffset + 2)
+					currentOffset += 4
+					c.createDebugLabel(startPc, labels)
+					labels[startPc].addLineNumber(lineNumber)
+					lineNumberTableLength--
+				}
+				continue
+			}
+			break
+		case "RuntimeVisibleTypeAnnotations":
+			visibleTypeAnnotationOffsets = c.readTypeAnnotations(methodVisitor, context, currentOffset, true)
+			break
+		case "RuntimeInvisibleTypeAnnotations":
+			invisibleTypeAnnotationOffsets = c.readTypeAnnotations(methodVisitor, context, currentOffset, false)
+			break
+		case "StackMapTable":
+			if (context.parsingOptions & SKIP_FRAMES) == 0 {
+				stackMapFrameOffset = currentOffset + 2
+				stackMapTableEndOffset = currentOffset + attributeLength
+			}
+			break
+		case "StackMap":
+			if (context.parsingOptions & SKIP_FRAMES) == 0 {
+				stackMapFrameOffset = currentOffset + 2
+				stackMapTableEndOffset = currentOffset + attributeLength
+				compressedFrames = false
+			}
+			break
+		default:
+			attribute := c.readAttribute(context.attributePrototypes, attributeName, currentOffset, attributeLength, charBuffer, codeOffset, labels)
+			attribute.nextAttribute = attributes
+			attributes = attribute
+			break
+		}
+		currentOffset += attributeLength
+		attributesCount--
+	}
+
+	expandFrames := (context.parsingOptions & EXPAND_FRAMS) != 0
+	if stackMapFrameOffset != 0 {
+		context.currentFrameOffset = -1
+		context.currentFrameType = 0
+		context.currentFrameLocalCount = 0
+		context.currentFrameLocalCountDelta = 0
+		context.currentFrameLocalTypes = make([]interface{}, maxLocals)
+		context.currentFrameStackCount = 0
+		context.currentFrameStackTypes = make([]interface{}, maxStack)
+		if expandFrames {
+			c.computeImplicitFame(context)
+		}
+		for offset := stackMapFrameOffset; offset < stackMapTableEndOffset-2; offset++ {
+			if b[offset] == frame.ITEM_UNINITIALIZED {
+				potentialBytecodeOffset := c.readUnsignedShort(offset + 1)
+				if potentialBytecodeOffset >= 0 && potentialBytecodeOffset < codeLength {
+					if (b[bytecodeStartOffset+potentialBytecodeOffset] & 0xFF) == opcodes.NEW {
+						c.createLabel(potentialBytecodeOffset, labels)
+					}
+				}
+			}
+		}
+	}
+	if expandFrames && (context.parsingOptions&EXPAND_ASM_INSNS) != 0 {
+		methodVisitor.VisitFrame(opcodes.F_NEW, maxLocals, nil, 0, nil)
+	}
+
+	currentVisibleTypeAnnotationIndex := 0
+	currentVisibleTypeAnnotationBytecodeOffset := c.getTypeAnnotationBytecodeOffset(visibleTypeAnnotationOffsets, 0)
+	currentInvisibleTypeAnnotationIndex := 0
+	currentInvisibleTypeAnnotationBytecodeOffset := c.getTypeAnnotationBytecodeOffset(invisibleTypeAnnotationOffsets, 0)
+	insertFrame := false
+
+	wideJumpOpcodeDelta := 0
+	if (context.parsingOptions & EXPAND_ASM_INSNS) == 0 {
+		wideJumpOpcodeDelta = constants.WIDE_JUMP_OPCODE_DELTA
+	}
+	currentOffset = bytecodeStartOffset
+
+	for currentOffset < bytecodeEndOffset {
+		currentBytecodeOffset := currentOffset - bytecodeStartOffset
+		currentLabel := labels[currentBytecodeOffset]
+		if currentLabel != nil {
+			currentLabel.accept(methodVisitor, (context.parsingOptions&SKIP_DEBUG) == 0)
+		}
+
+		for stackMapFrameOffset != 0 && (context.currentFrameOffset == currentBytecodeOffset || context.currentFrameOffset == -1) {
+			if context.currentFrameOffset != -1 {
+				if !compressedFrames || expandFrames {
+					methodVisitor.VisitFrame(opcodes.F_NEW, context.currentFrameLocalCount, context.currentFrameLocalTypes, context.currentFrameStackCount, context.currentFrameStackTypes)
+				} else {
+					methodVisitor.VisitFrame(context.currentFrameType, context.currentFrameLocalCountDelta, context.currentFrameLocalTypes, context.currentFrameStackCount, context.currentFrameStackTypes)
+				}
+				insertFrame = false
+			}
+			if stackMapFrameOffset < stackMapTableEndOffset {
+				stackMapFrameOffset = c.readStackMapFrame(stackMapFrameOffset, compressedFrames, expandFrames, context)
+			} else {
+				stackMapFrameOffset = 0
+			}
+		}
+
+		if insertFrame {
+			if context.parsingOptions&EXPAND_FRAMS != 0 {
+				methodVisitor.VisitFrame(constants.F_INSERT, 0, nil, 0, nil)
+			}
+			insertFrame = false
+		}
+
+		opcode := b[currentOffset] & 0xFF
+		switch opcode {
+		case constants.NOP, constants.ACONST_NULL, constants.ICONST_M1,
+			constants.ICONST_0, constants.ICONST_1, constants.ICONST_2, constants.ICONST_3, constants.ICONST_4, constants.ICONST_5,
+			constants.LCONST_0, constants.LCONST_1,
+			constants.FCONST_0, constants.FCONST_1, constants.FCONST_2,
+			constants.DCONST_0, constants.DCONST_1,
+			constants.IALOAD, constants.LALOAD, constants.FALOAD, constants.DALOAD, constants.AALOAD, constants.BALOAD, constants.CALOAD, constants.SALOAD,
+			constants.IASTORE, constants.LASTORE, constants.FASTORE, constants.DASTORE, constants.AASTORE, constants.BASTORE, constants.CASTORE, constants.SASTORE,
+			constants.POP, constants.POP2,
+			constants.DUP, constants.DUP_X1, constants.DUP_X2, constants.DUP2, constants.DUP2_X1, constants.DUP2_X2,
+			constants.SWAP, constants.IADD, constants.LADD, constants.FADD, constants.DADD,
+			constants.ISUB, constants.LSUB, constants.FSUB, constants.DSUB,
+			constants.IMUL, constants.LMUL, constants.FMUL, constants.DMUL,
+			constants.IDIV, constants.LDIV, constants.FDIV, constants.DDIV,
+			constants.IREM, constants.LREM, constants.FREM, constants.DREM,
+			constants.INEG, constants.LNEG, constants.FNEG, constants.DNEG,
+			constants.ISHL, constants.LSHL, constants.ISHR, constants.LSHR, constants.IUSHR, constants.LUSHR,
+			constants.IAND, constants.LAND, constants.IOR, constants.LOR, constants.IXOR, constants.LXOR,
+			constants.I2L, constants.I2F, constants.I2D, constants.L2I, constants.L2F, constants.L2D,
+			constants.F2I, constants.F2L, constants.F2D,
+			constants.D2I, constants.D2L, constants.D2F,
+			constants.I2B, constants.I2C, constants.I2S,
+			constants.LCMP, constants.FCMPL, constants.FCMPG, constants.DCMPL, constants.DCMPG,
+			constants.IRETURN, constants.LRETURN, constants.FRETURN, constants.DRETURN, constants.ARETURN, constants.RETURN,
+			constants.ARRAYLENGTH, constants.ATHROW,
+			constants.MONITORENTER, constants.MONITOREXIT:
+			methodVisitor.VisitInsn(int(opcode))
+			currentOffset++
+			break
+		case constants.ILOAD_0, constants.ILOAD_1, constants.ILOAD_2, constants.ILOAD_3,
+			constants.LLOAD_0, constants.LLOAD_1, constants.LLOAD_2, constants.LLOAD_3,
+			constants.FLOAD_0, constants.FLOAD_1, constants.FLOAD_2, constants.FLOAD_3,
+			constants.DLOAD_0, constants.DLOAD_1, constants.DLOAD_2, constants.DLOAD_3,
+			constants.ALOAD_0, constants.ALOAD_1, constants.ALOAD_2, constants.ALOAD_3:
+			opcode -= constants.ILOAD_0
+			methodVisitor.VisitVarInsn(int(opcodes.ILOAD+(opcode>>2)), int(opcode&0x3))
+			currentOffset++
+			break
+		case constants.ISTORE_0, constants.ISTORE_1, constants.ISTORE_2, constants.ISTORE_3,
+			constants.LSTORE_0, constants.LSTORE_1, constants.LSTORE_2, constants.LSTORE_3,
+			constants.FSTORE_0, constants.FSTORE_1, constants.FSTORE_2, constants.FSTORE_3,
+			constants.DSTORE_0, constants.DSTORE_1, constants.DSTORE_2, constants.DSTORE_3,
+			constants.ASTORE_0, constants.ASTORE_1, constants.ASTORE_2, constants.ASTORE_3:
+			opcode -= constants.ISTORE_0
+			methodVisitor.VisitVarInsn(int(opcodes.ISTORE+(opcode>>2)), int(opcode&0x3))
+			currentOffset++
+			break
+		case constants.IFEQ, constants.IFNE, constants.IFLT, constants.IFGE, constants.IFGT, constants.IFLE,
+			constants.IF_ICMPEQ, constants.IF_ICMPNE, constants.IF_ICMPLT, constants.IF_ICMPGE, constants.IF_ICMPGT, constants.IF_ICMPLE,
+			constants.IF_ACMPEQ, constants.IF_ACMPNE, constants.GOTO, constants.JSR, constants.IFNULL, constants.IFNONNULL:
+			methodVisitor.VisitJumpInsn(int(opcode), labels[currentBytecodeOffset+int(c.readShort(currentOffset+1))])
+			currentOffset += 3
+			break
+		case constants.GOTO_W, constants.JSR_W:
+			methodVisitor.VisitJumpInsn(int(opcode)-wideJumpOpcodeDelta, labels[currentBytecodeOffset+c.readInt(currentOffset+1)])
+			currentOffset += 5
+			break
+		case constants.ASM_IFEQ, constants.ASM_IFNE, constants.ASM_IFLT, constants.ASM_IFGE, constants.ASM_IFGT, constants.ASM_IFLE,
+			constants.ASM_IF_ICMPEQ, constants.ASM_IF_ICMPNE, constants.ASM_IF_ICMPLT, constants.ASM_IF_ICMPGE, constants.ASM_IF_ICMPGT, constants.ASM_IF_ICMPLE,
+			constants.ASM_IF_ACMPEQ, constants.ASM_IF_ACMPNE,
+			constants.ASM_GOTO, constants.ASM_JSR, constants.ASM_IFNULL, constants.ASM_IFNONNULL:
+			{
+				if opcode < constants.ASM_IFNULL {
+					opcode = opcode - constants.ASM_OPCODE_DELTA
+				} else {
+					opcode = opcode - constants.ASM_IFNULL_OPCODE_DELTA
+				}
+				target := labels[currentBytecodeOffset+c.readUnsignedShort(currentOffset+1)]
+				if opcode == opcodes.GOTO || opcode == opcodes.JSR {
+					methodVisitor.VisitJumpInsn(int(opcode+constants.WIDE_JUMP_OPCODE_DELTA), target)
+				} else {
+					if opcode < opcodes.GOTO {
+						opcode = ((opcode + 1) ^ 1) - 1
+					} else {
+						opcode = opcode ^ 1
+					}
+					endif := c.createLabel(currentBytecodeOffset+3, labels)
+					methodVisitor.VisitJumpInsn(int(opcode), endif)
+					methodVisitor.VisitJumpInsn(constants.GOTO_W, target)
+					insertFrame = true
+				}
+				currentOffset += 3
+				break
+			}
+		case constants.ASM_GOTO_W:
+			{
+				methodVisitor.VisitJumpInsn(constants.GOTO_W, labels[currentBytecodeOffset+c.readInt(currentOffset+1)])
+				insertFrame = true
+				currentOffset += 5
+				break
+			}
+		case constants.WIDE:
+			opcode = b[currentOffset+1] & 0xFF
+			if opcode == opcodes.IINC {
+				methodVisitor.VisitIincInsn(c.readUnsignedShort(currentOffset+2), int(c.readShort(currentOffset+4)))
+				currentOffset += 6
+			} else {
+				methodVisitor.VisitVarInsn(int(opcode), c.readUnsignedShort(currentOffset+2))
+				currentOffset += 4
+			}
+			break
+		case constants.TABLESWITCH:
+			{
+				currentOffset += 4 - (currentBytecodeOffset & 3)
+				defaultLabel := labels[currentBytecodeOffset+c.readInt(currentOffset)]
+				low := c.readInt(currentOffset + 4)
+				high := c.readInt(currentOffset + 8)
+				currentOffset += 12
+				table := make([]*Label, high-low+1)
+				for i := 0; i < len(table); i++ {
+					table[i] = labels[currentBytecodeOffset+c.readInt(currentOffset)]
+					currentOffset += 4
+				}
+				methodVisitor.VisitTableSwitchInsn(low, high, defaultLabel, table...)
+				break
+			}
+		case constants.LOOKUPSWITCH:
+			{
+				currentOffset += 4 - (currentBytecodeOffset & 3)
+				defaultLabel := labels[currentBytecodeOffset+c.readInt(currentOffset)]
+				nPairs := c.readInt(currentOffset + 4)
+				currentOffset += 8
+				keys := make([]int, nPairs)
+				values := make([]*Label, nPairs)
+				for i := 0; i < nPairs; i++ {
+					keys[i] = c.readInt(currentOffset)
+					values[i] = labels[currentBytecodeOffset+c.readInt(currentOffset+4)]
+					currentOffset += 8
+				}
+				methodVisitor.VisitLookupSwitchInsn(defaultLabel, keys, values)
+				break
+			}
+		case constants.ILOAD, constants.LLOAD, constants.FLOAD, constants.DLOAD, constants.ALOAD,
+			constants.ISTORE, constants.LSTORE, constants.FSTORE, constants.DSTORE, constants.ASTORE,
+			constants.RET:
+			methodVisitor.VisitVarInsn(int(opcode), int(b[currentOffset+1]&0xFF))
+			currentOffset += 2
+			break
+		case constants.BIPUSH, constants.NEWARRAY:
+			methodVisitor.VisitIntInsn(int(opcode), int(b[currentOffset+1]))
+			currentOffset += 2
+			break
+		case constants.SIPUSH:
+			methodVisitor.VisitIntInsn(int(opcode), int(c.readShort(currentOffset+1)))
+			currentOffset += 3
+			break
+		case constants.LDC:
+			constd, _ := c.readConst(int(b[currentOffset+1]&0xFF), charBuffer)
+			methodVisitor.VisitLdcInsn(constd)
+			currentOffset += 2
+			break
+		case constants.LDC_W, constants.LDC2_W:
+			constd, _ := c.readConst(c.readUnsignedShort(currentOffset+1), charBuffer)
+			methodVisitor.VisitLdcInsn(constd)
+			currentOffset += 3
+			break
+		case constants.GETSTATIC, constants.PUTSTATIC, constants.GETFIELD, constants.PUTFIELD,
+			constants.INVOKEVIRTUAL, constants.INVOKESPECIAL, constants.INVOKESTATIC, constants.INVOKEINTERFACE:
+			{
+				cpInfoOffset := c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]
+				nameAndTypeCpInfoOffset := c.cpInfoOffsets[c.readUnsignedShort(cpInfoOffset+2)]
+				owner := c.readClass(cpInfoOffset, charBuffer)
+				name := c.readUTF8(nameAndTypeCpInfoOffset, charBuffer)
+				desc := c.readUTF8(nameAndTypeCpInfoOffset+2, charBuffer)
+				if opcode < opcodes.INVOKEVIRTUAL {
+					methodVisitor.VisitFieldInsn(int(opcode), owner, name, desc)
+				} else {
+					itf := b[cpInfoOffset-1] == symbol.CONSTANT_INTERFACE_METHODREF_TAG
+					methodVisitor.VisitMethodInsnB(int(opcode), owner, name, desc, itf)
+				}
+				if opcode == opcodes.INVOKEINTERFACE {
+					currentOffset += 5
+				} else {
+					currentOffset += 3
+				}
+				break
+			}
+		case constants.INVOKEDYNAMIC:
+			{
+				cpInfoOffset := c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]
+				nameAndTypeCpInfoOffset := c.cpInfoOffsets[c.readUnsignedShort(cpInfoOffset+2)]
+				name := c.readUTF8(nameAndTypeCpInfoOffset, charBuffer)
+				desc := c.readUTF8(nameAndTypeCpInfoOffset+2, charBuffer)
+				bootstrapMethodOffset := context.bootstrapMethodOffsets[c.readUnsignedShort(cpInfoOffset)]
+				var handle interface{}
+				//handle = (Handle) readConst(readUnsignedShort(bootstrapMethodOffset), charBuffer);
+				bootstrapMethodArguments := make([]interface{}, c.readUnsignedShort(bootstrapMethodOffset+2))
+				bootstrapMethodOffset += 4
+				for i := 0; i < len(bootstrapMethodArguments); i++ {
+					bootstrapMethodArguments[i], _ = c.readConst(c.readUnsignedShort(bootstrapMethodOffset), charBuffer)
+					bootstrapMethodOffset += 2
+				}
+				methodVisitor.VisitInvokeDynamicInsn(name, desc, handle, bootstrapMethodArguments)
+				currentOffset += 5
+				break
+			}
+		case constants.NEW, constants.ANEWARRAY, constants.CHECKCAST, constants.INSTANCEOF:
+			methodVisitor.VisitTypeInsn(int(opcode), c.readClass(currentOffset+1, charBuffer))
+			currentOffset += 3
+			break
+		case constants.IINC:
+			methodVisitor.VisitIincInsn(int(b[currentOffset+1]&0xFF), int(b[currentOffset+2]))
+			currentOffset += 3
+			break
+		case constants.MULTIANEWARRAY:
+			methodVisitor.VisitMultiANewArrayInsn(c.readClass(currentOffset+1, charBuffer), int(b[currentOffset+3]&0xFF))
+			currentOffset += 4
+			break
+		default:
+			break
+			//throw new AssertionError()
+		}
+
+		for visibleTypeAnnotationOffsets != nil && currentVisibleTypeAnnotationIndex < len(visibleTypeAnnotationOffsets) && currentVisibleTypeAnnotationBytecodeOffset <= currentBytecodeOffset {
+			if currentVisibleTypeAnnotationBytecodeOffset == currentBytecodeOffset {
+				currentAnnotationOffset := c.readTypeAnnotationTarget(context, visibleTypeAnnotationOffsets[currentVisibleTypeAnnotationIndex])
+				annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+				currentAnnotationOffset += 2
+				c.readElementValues(methodVisitor.VisitInsnAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
+			}
+			currentVisibleTypeAnnotationIndex++
+			currentVisibleTypeAnnotationBytecodeOffset = c.getTypeAnnotationBytecodeOffset(visibleTypeAnnotationOffsets, currentVisibleTypeAnnotationIndex)
+		}
+
+		for invisibleTypeAnnotationOffsets != nil && currentInvisibleTypeAnnotationIndex < len(invisibleTypeAnnotationOffsets) && currentInvisibleTypeAnnotationBytecodeOffset <= currentBytecodeOffset {
+			if currentInvisibleTypeAnnotationBytecodeOffset == currentBytecodeOffset {
+				currentAnnotationOffset := c.readTypeAnnotationTarget(context, invisibleTypeAnnotationOffsets[currentInvisibleTypeAnnotationIndex])
+				annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
+				currentAnnotationOffset += 2
+				c.readElementValues(methodVisitor.VisitInsnAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
+			}
+			currentInvisibleTypeAnnotationIndex++
+			currentInvisibleTypeAnnotationBytecodeOffset = c.getTypeAnnotationBytecodeOffset(invisibleTypeAnnotationOffsets, currentInvisibleTypeAnnotationIndex)
+		}
+	}
+
+	if labels[codeLength] != nil {
+		methodVisitor.VisitLabel(labels[codeLength])
+	}
+
+	if localVariableTableOffset != 0 && (context.parsingOptions&SKIP_DEBUG) == 0 {
+		var typeTable []int
+		if localVariableTypeTableOffset != 0 {
+			typeTable = make([]int, c.readUnsignedShort(localVariableTypeTableOffset)*3)
+			currentOffset = localVariableTypeTableOffset + 2
+			for i := len(typeTable); i > 0; {
+				i--
+				typeTable[i] = currentOffset + 6
+				i--
+				typeTable[i] = c.readUnsignedShort(currentOffset + 8)
+				i--
+				typeTable[i] = c.readUnsignedShort(currentOffset)
+				currentOffset += 10
+			}
+		}
+		localVariableTableLength := c.readUnsignedShort(localVariableTableOffset)
+		currentOffset = localVariableTableOffset + 2
+		for localVariableTableLength > 0 {
+			startPc := c.readUnsignedShort(currentOffset)
+			length := c.readUnsignedShort(currentOffset + 2)
+			name := c.readUTF8(currentOffset+4, charBuffer)
+			descriptor := c.readUTF8(currentOffset+6, charBuffer)
+			index := c.readUnsignedShort(currentOffset + 8)
+			currentOffset += 10
+			var signature string
+			if typeTable != nil {
+				for i := 0; i < len(typeTable); i += 3 {
+					if typeTable[i] == startPc && typeTable[i+1] == index {
+						signature = c.readUTF8(typeTable[i+2], charBuffer)
+						break
+					}
+				}
+			}
+			methodVisitor.VisitLocalVariable(name, descriptor, signature, labels[startPc], labels[startPc+length], index)
+			localVariableTableLength--
+		}
+	}
+
+	if visibleTypeAnnotationOffsets != nil {
+		for i := 0; i < len(visibleTypeAnnotationOffsets); i++ {
+			targetType := c.readByte(visibleTypeAnnotationOffsets[i])
+			if targetType == LOCAL_VARIABLE || targetType == RESOURCE_VARIABLE {
+				currentOffset = c.readTypeAnnotationTarget(context, visibleTypeAnnotationOffsets[i])
+				annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
+				currentOffset += 2
+				annotationVisitor := methodVisitor.VisitLocalVariableAnnotation(
+					context.currentTypeAnnotationTarget,
+					context.currentTypeAnnotationTargetPath,
+					context.currentLocalVariableAnnotationRangeStarts,
+					context.currentLocalVariableAnnotationRangeEnds,
+					context.currentLocalVariableAnnotationRangeIndices,
+					annotationDescriptor,
+					true,
+				)
+				currentOffset = c.readElementValues(annotationVisitor, currentOffset, true, charBuffer)
+			}
+		}
+	}
+
+	if invisibleTypeAnnotationOffsets != nil {
+		for i := 0; i < len(invisibleTypeAnnotationOffsets); i++ {
+			targetType := c.readByte(visibleTypeAnnotationOffsets[i])
+			if targetType == LOCAL_VARIABLE || targetType == RESOURCE_VARIABLE {
+				currentOffset = c.readTypeAnnotationTarget(context, invisibleTypeAnnotationOffsets[i])
+				annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
+				currentOffset += 2
+				annotationVisitor := methodVisitor.VisitLocalVariableAnnotation(
+					context.currentTypeAnnotationTarget,
+					context.currentTypeAnnotationTargetPath,
+					context.currentLocalVariableAnnotationRangeStarts,
+					context.currentLocalVariableAnnotationRangeEnds,
+					context.currentLocalVariableAnnotationRangeIndices,
+					annotationDescriptor,
+					false,
+				)
+				currentOffset = c.readElementValues(annotationVisitor, currentOffset, true, charBuffer)
+			}
+		}
+	}
+
+	for attributes != nil {
+		nextAttribute := attributes.nextAttribute
+		attributes.nextAttribute = nil
+		methodVisitor.VisitAttribute(attributes)
+		attributes = nextAttribute
+	}
+
+	methodVisitor.VisitMaxs(maxStack, maxLocals)
 }
 
 func (c ClassReader) readLabel(bytecodeOffset int, labels []*Label) *Label {
@@ -835,7 +1407,6 @@ func (c ClassReader) getTypeAnnotationBytecodeOffset(typeAnnotationOffsets []int
 	if typeAnnotationOffsets == nil || typeAnnotationIndex >= len(typeAnnotationOffsets) || c.readByte(typeAnnotationOffsets[typeAnnotationIndex]) < INSTANCEOF {
 		return -1
 	}
-
 	return c.readUnsignedShort(typeAnnotationOffsets[typeAnnotationIndex] + 1)
 }
 
@@ -854,6 +1425,7 @@ func (c ClassReader) readElementValues(annotationVisitor AnnotationVisitor, anno
 }
 
 func (c ClassReader) readElementValue(annotationVisitor AnnotationVisitor, elementValueOffset int, elementName string, charBuffer []rune) int {
+	//TODO
 	return 0
 }
 

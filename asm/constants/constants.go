@@ -1,25 +1,7 @@
 package constants
 
-// ASM specific access flags.
-// WARNING: the 16 least significant bits must NOT be used, to avoid conflicts with standard
-// access flags, and also to make sure that these flags are automatically filtered out when
-// written in class files (because access flags are stored using 16 bits only).
 const ACC_CONSTRUCTOR = 0x40000 // method access flag.
-
-// ASM specific stack map frame types, used in {@link ClassVisitor#visitFrame}.
-
-/**
- * A frame inserted between already existing frames. This internal stack map frame type (in
- * addition to the ones declared in {@link Opcodes}) can only be used if the frame content can be
- * computed from the previous existing frame and from the instructions between this existing frame
- * and the inserted one, without any knowledge of the type hierarchy. This kind of frame is only
- * used when an unconditional jump is inserted in a method while expanding an ASM specific
- * instruction. Keep in sync with Opcodes.java.
- */
 const F_INSERT = 256
-
-// The JVM opcode values which are not part of the ASM public API.
-// See https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-6.html.
 const LDC_W = 19
 const LDC2_W = 20
 const ILOAD_0 = 26
@@ -65,22 +47,9 @@ const ASTORE_3 = 78
 const WIDE = 196
 const GOTO_W = 200
 const JSR_W = 201
-
-// Constants to convert between normal and wide jump instructions.
-
-// The delta between the GOTO_W and JSR_W opcodes and GOTO and JUMP.
 const WIDE_JUMP_OPCODE_DELTA = GOTO_W - GOTO
-
-// Constants to convert JVM opcodes to the equivalent ASM specific opcodes, and vice versa.
-
-// The delta between the ASM_IFEQ, ..., ASM_IF_ACMPNE, ASM_GOTO and ASM_JSR opcodes
-// and IFEQ, ..., IF_ACMPNE, GOTO and JSR.
 const ASM_OPCODE_DELTA = 49
-
-// The delta between the ASM_IFNULL and ASM_IFNONNULL opcodes and IFNULL and IFNONNULL.
 const ASM_IFNULL_OPCODE_DELTA = 20
-
-// ASM specific opcodes, used for long forward jump instructions.
 const ASM_IFEQ = IFEQ + ASM_OPCODE_DELTA
 const ASM_IFNE = IFNE + ASM_OPCODE_DELTA
 const ASM_IFLT = IFLT + ASM_OPCODE_DELTA
@@ -100,3 +69,184 @@ const ASM_JSR = JSR + ASM_OPCODE_DELTA
 const ASM_IFNULL = IFNULL + ASM_IFNULL_OPCODE_DELTA
 const ASM_IFNONNULL = IFNONNULL + ASM_IFNULL_OPCODE_DELTA
 const ASM_GOTO_W = 220
+
+const T_BOOLEAN = 4
+const T_CHAR = 5
+const T_FLOAT = 6
+const T_DOUBLE = 7
+const T_BYTE = 8
+const T_SHORT = 9
+const T_INT = 10
+const T_LONG = 11
+const H_GETFIELD = 1
+const H_GETSTATIC = 2
+const H_PUTFIELD = 3
+const H_PUTSTATIC = 4
+const H_INVOKEVIRTUAL = 5
+const H_INVOKESTATIC = 6
+const H_INVOKESPECIAL = 7
+const H_NEWINVOKESPECIAL = 8
+const H_INVOKEINTERFACE = 9
+const F_NEW = -1
+const F_FULL = 0
+const F_APPEND = 1
+const F_CHOP = 2
+const F_SAME = 3
+const F_SAME1 = 4
+const NOP = 0               // visitInsn
+const ACONST_NULL = 1       // -
+const ICONST_M1 = 2         // -
+const ICONST_0 = 3          // -
+const ICONST_1 = 4          // -
+const ICONST_2 = 5          // -
+const ICONST_3 = 6          // -
+const ICONST_4 = 7          // -
+const ICONST_5 = 8          // -
+const LCONST_0 = 9          // -
+const LCONST_1 = 10         // -
+const FCONST_0 = 11         // -
+const FCONST_1 = 12         // -
+const FCONST_2 = 13         // -
+const DCONST_0 = 14         // -
+const DCONST_1 = 15         // -
+const BIPUSH = 16           // visitIntInsn
+const SIPUSH = 17           // -
+const LDC = 18              // visitLdcInsn
+const ILOAD = 21            // visitVarInsn
+const LLOAD = 22            // -
+const FLOAD = 23            // -
+const DLOAD = 24            // -
+const ALOAD = 25            // -
+const IALOAD = 46           // visitInsn
+const LALOAD = 47           // -
+const FALOAD = 48           // -
+const DALOAD = 49           // -
+const AALOAD = 50           // -
+const BALOAD = 51           // -
+const CALOAD = 52           // -
+const SALOAD = 53           // -
+const ISTORE = 54           // visitVarInsn
+const LSTORE = 55           // -
+const FSTORE = 56           // -
+const DSTORE = 57           // -
+const ASTORE = 58           // -
+const IASTORE = 79          // visitInsn
+const LASTORE = 80          // -
+const FASTORE = 81          // -
+const DASTORE = 82          // -
+const AASTORE = 83          // -
+const BASTORE = 84          // -
+const CASTORE = 85          // -
+const SASTORE = 86          // -
+const POP = 87              // -
+const POP2 = 88             // -
+const DUP = 89              // -
+const DUP_X1 = 90           // -
+const DUP_X2 = 91           // -
+const DUP2 = 92             // -
+const DUP2_X1 = 93          // -
+const DUP2_X2 = 94          // -
+const SWAP = 95             // -
+const IADD = 96             // -
+const LADD = 97             // -
+const FADD = 98             // -
+const DADD = 99             // -
+const ISUB = 100            // -
+const LSUB = 101            // -
+const FSUB = 102            // -
+const DSUB = 103            // -
+const IMUL = 104            // -
+const LMUL = 105            // -
+const FMUL = 106            // -
+const DMUL = 107            // -
+const IDIV = 108            // -
+const LDIV = 109            // -
+const FDIV = 110            // -
+const DDIV = 111            // -
+const IREM = 112            // -
+const LREM = 113            // -
+const FREM = 114            // -
+const DREM = 115            // -
+const INEG = 116            // -
+const LNEG = 117            // -
+const FNEG = 118            // -
+const DNEG = 119            // -
+const ISHL = 120            // -
+const LSHL = 121            // -
+const ISHR = 122            // -
+const LSHR = 123            // -
+const IUSHR = 124           // -
+const LUSHR = 125           // -
+const IAND = 126            // -
+const LAND = 127            // -
+const IOR = 128             // -
+const LOR = 129             // -
+const IXOR = 130            // -
+const LXOR = 131            // -
+const IINC = 132            // visitIincInsn
+const I2L = 133             // visitInsn
+const I2F = 134             // -
+const I2D = 135             // -
+const L2I = 136             // -
+const L2F = 137             // -
+const L2D = 138             // -
+const F2I = 139             // -
+const F2L = 140             // -
+const F2D = 141             // -
+const D2I = 142             // -
+const D2L = 143             // -
+const D2F = 144             // -
+const I2B = 145             // -
+const I2C = 146             // -
+const I2S = 147             // -
+const LCMP = 148            // -
+const FCMPL = 149           // -
+const FCMPG = 150           // -
+const DCMPL = 151           // -
+const DCMPG = 152           // -
+const IFEQ = 153            // visitJumpInsn
+const IFNE = 154            // -
+const IFLT = 155            // -
+const IFGE = 156            // -
+const IFGT = 157            // -
+const IFLE = 158            // -
+const IF_ICMPEQ = 159       // -
+const IF_ICMPNE = 160       // -
+const IF_ICMPLT = 161       // -
+const IF_ICMPGE = 162       // -
+const IF_ICMPGT = 163       // -
+const IF_ICMPLE = 164       // -
+const IF_ACMPEQ = 165       // -
+const IF_ACMPNE = 166       // -
+const GOTO = 167            // -
+const JSR = 168             // -
+const RET = 169             // visitVarInsn
+const TABLESWITCH = 170     // visiTableSwitchInsn
+const LOOKUPSWITCH = 171    // visitLookupSwitch
+const IRETURN = 172         // visitInsn
+const LRETURN = 173         // -
+const FRETURN = 174         // -
+const DRETURN = 175         // -
+const ARETURN = 176         // -
+const RETURN = 177          // -
+const GETSTATIC = 178       // visitFieldInsn
+const PUTSTATIC = 179       // -
+const GETFIELD = 180        // -
+const PUTFIELD = 181        // -
+const INVOKEVIRTUAL = 182   // visitMethodInsn
+const INVOKESPECIAL = 183   // -
+const INVOKESTATIC = 184    // -
+const INVOKEINTERFACE = 185 // -
+const INVOKEDYNAMIC = 186   // visitInvokeDynamicInsn
+const NEW = 187             // visitTypeInsn
+const NEWARRAY = 188        // visitIntInsn
+const ANEWARRAY = 189       // visitTypeInsn
+const ARRAYLENGTH = 190     // visitInsn
+const ATHROW = 191          // -
+const CHECKCAST = 192       // visitTypeInsn
+const INSTANCEOF = 193      // -
+const MONITORENTER = 194    // visitInsn
+const MONITOREXIT = 195     // -
+const MULTIANEWARRAY = 197  // visitMultiANewArrayInsn
+const IFNULL = 198          // visitJumpInsn
+const IFNONNULL = 199       // -
