@@ -1963,17 +1963,17 @@ func (c ClassReader) readByte(offset int) byte {
 
 func (c ClassReader) readUnsignedShort(offset int) int {
 	b := c.b
-	return int(((b[offset] & 0xFF) << 8) | (b[offset+1] & 0xFF))
+	return (int(b[offset]&0xFF) << 8) | int(b[offset+1]&0xFF)
 }
 
 func (c ClassReader) readShort(offset int) int16 {
 	b := c.b
-	return int16((((b[offset] & 0xFF) << 8) | (b[offset+1] & 0xFF)))
+	return ((int16(b[offset]&0xFF) << 8) | int16(b[offset+1]&0xFF))
 }
 
 func (c ClassReader) readInt(offset int) int {
 	b := c.b
-	return int(((b[offset] & 0xFF) << 24) | ((b[offset+1] & 0xFF) << 16) | ((b[offset+2] & 0xFF) << 8) | (b[offset+3] & 0xFF))
+	return int((b[offset]&0xFF))<<24 | int((b[offset+1]&0xFF))<<16 | int((b[offset+2]&0xFF))<<8 | int(b[offset+3]&0xFF)
 }
 
 func (c ClassReader) readLong(offset int) int64 {
