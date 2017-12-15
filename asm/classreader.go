@@ -341,7 +341,12 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		currentClassesOffset := innerClassesOffset + 2
 		for numberOfClasses > 0 {
 			numberOfClasses--
-			classVisitor.VisitInnerClass(c.readClass(currentClassesOffset, charBuffer), c.readClass(currentAttributeOffset+2, charBuffer), c.readClass(currentClassesOffset+4, charBuffer), c.readUnsignedShort(currentClassesOffset+6))
+			classVisitor.VisitInnerClass(
+				c.readClass(currentClassesOffset, charBuffer),
+				c.readClass(currentClassesOffset+2, charBuffer),
+				c.readUTF8(currentClassesOffset+4, charBuffer),
+				c.readUnsignedShort(currentClassesOffset+6),
+			)
 			currentClassesOffset += 8
 		}
 	}
