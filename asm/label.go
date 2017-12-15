@@ -137,22 +137,42 @@ func (l *Label) resolve(code []byte, bytecodeOffset int) bool {
 	return hasAsmInstructions
 }
 
-func (l *Label) markSubroutine(subroutineId int, numSubroutine int) {
+func (l *Label) markSubroutine(subroutineID int, numSubroutine int) {
 	listOfBlocksToProcess := l
 	listOfBlocksToProcess.nextListElement = EMPTY_LIST
 	for listOfBlocksToProcess != EMPTY_LIST {
 		basicBlock := listOfBlocksToProcess
 		listOfBlocksToProcess = listOfBlocksToProcess.nextListElement
 		basicBlock.nextListElement = nil
-		if !basicBlock.isInSubroutine(subroutineId) {
-			basicBlock.addToSubroutine(subroutineId, numSubroutine)
+		if !basicBlock.isInSubroutine(subroutineID) {
+			basicBlock.addToSubroutine(subroutineID, numSubroutine)
 			listOfBlocksToProcess = basicBlock.pushSuccessors(listOfBlocksToProcess)
 		}
 	}
 }
 
-func (l Label) addSubroutineRetSuccessors(subroutineCaller *Label, numSubroutine int) {
-	//TODO
+func (l *Label) addSubroutineRetSuccessors(subroutineCaller *Label, numSubroutine int) {
+	listOfProcessedBlocks := EMPTY_LIST
+	listOfBlocksToProcess := l
+	listOfBlocksToProcess.nextListElement = EMPTY_LIST
+	for listOfBlocksToProcess != EMPTY_LIST {
+		basicBlock := listOfBlocksToProcess
+		listOfBlocksToProcess = basicBlock.nextListElement
+		basicBlock.nextListElement = listOfProcessedBlocks
+		listOfProcessedBlocks = basicBlock
+
+		if (basicBlock.flags&FLAG_SUBROUTINE_END) != 0 && !basicBlock.isInSameSubroutine(subroutineCaller) {
+			basicBlock.outgoingEdges = NewEdge(int(basicBlock.outputStackSize), subroutineCaller.outgoingEdges.successor, basicBlock.outgoingEdges)
+		}
+
+		listOfBlocksToProcess = basicBlock.pushSuccessors(listOfBlocksToProcess)
+	}
+
+	for listOfProcessedBlocks != EMPTY_LIST {
+		nextListElement := listOfProcessedBlocks.nextListElement
+		listOfProcessedBlocks.nextListElement = nil
+		listOfProcessedBlocks = nextListElement
+	}
 }
 
 func (l *Label) pushSuccessors(listOfLabelsToProcess *Label) *Label {
@@ -170,9 +190,9 @@ func (l *Label) pushSuccessors(listOfLabelsToProcess *Label) *Label {
 	return listOfLabelsToProcess
 }
 
-func (l Label) isInSubroutine(subroutineId int) bool {
+func (l Label) isInSubroutine(subroutineID int) bool {
 	if (l.flags & FLAG_SUBROUTINE_BODY) != 0 {
-		return (l.values[subroutineId/32] & (1 << (uint(subroutineId) % 32))) != 0
+		return (l.values[subroutineID/32] & (1 << (uint(subroutineID) % 32))) != 0
 	}
 	return false
 }
@@ -189,10 +209,10 @@ func (l Label) isInSameSubroutine(basicBlock *Label) bool {
 	return false
 }
 
-func (l *Label) addToSubroutine(subroutineId int, numSubroutine int) {
+func (l *Label) addToSubroutine(subroutineID int, numSubroutine int) {
 	if (l.flags & FLAG_SUBROUTINE_BODY) == 0 {
 		l.flags |= FLAG_SUBROUTINE_BODY
 		l.values = make([]int, numSubroutine/32+1)
 	}
-	l.values[subroutineId/32] |= (1 << (uint(subroutineId) % 32))
+	l.values[subroutineID/32] |= (1 << (uint(subroutineID) % 32))
 }

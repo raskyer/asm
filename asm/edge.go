@@ -15,3 +15,7 @@ type Edge struct {
 	successor *Label
 	nextEdge  *Edge
 }
+
+func NewEdge(info int, successor *Label, nextEdge *Edge) *Edge {
+	return &Edge{info, successor, nextEdge}
+}

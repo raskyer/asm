@@ -13,7 +13,7 @@ Second reason could be to provide different tools for JVM manipulation through G
 
 | CLASS | PROGRESS % |
 | ----- | ---------- |
-| ClassReader | 60% |
+| ClassReader | 70% |
 | ClassVisitor | 100% |
 | MethodVisitor | 100% |
 | FieldVisitor | 100% |
@@ -22,8 +22,9 @@ Second reason could be to provide different tools for JVM manipulation through G
 | Handle | 100% |
 | Attribute | ? |
 | Context | ? |
-| Label | 80% |
+| Label | 90% |
 | TypeReference | ? |
 | Opcodes | ? |
 | Symbol | ? |
 | TypePath | 0% |
+| EDGE | 80% |
