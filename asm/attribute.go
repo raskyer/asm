@@ -27,7 +27,7 @@ func (a Attribute) getLabels() []Label {
 func (a Attribute) read(classReader *ClassReader, offset int, length int, charBuffer []rune, codeAttributeOffset int, labels []*Label) *Attribute {
 	attribute := NewAttribute(a.typed)
 	attribute.content = make([]byte, length)
-	//System.arraycopy(classReader.b, offset, attribute.content, 0, length)
+	copy(attribute.content, classReader.b) //System.arraycopy(classReader.b, offset, attribute.content, 0, length)
 	return attribute
 }
 
