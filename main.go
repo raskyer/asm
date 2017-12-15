@@ -28,19 +28,12 @@ func main() {
 	}
 
 	reader.Accept(&helper.ClassVisitor{
-		OnVisit: func(version, access int, name, signature, superName string, interfaces []string) {
-		},
-		OnVisitField: func(access int, name, descriptor, signature string, value interface{}) asm.FieldVisitor {
-			return nil
-		},
 		OnVisitMethod: func(access int, name, descriptor, signature string, exceptions []string) asm.MethodVisitor {
 			return &helper.MethodVisitor{
 				OnVisitLineNumber: func(line int, start *asm.Label) {
-					fmt.Println(line)
+					fmt.Println(name, line)
 				},
 			}
-		},
-		OnVisitEnd: func() {
 		},
 	}, 0)
 }
