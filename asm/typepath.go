@@ -5,6 +5,13 @@ type TypePath struct {
 	typePathOffset    int
 }
 
+func NewTypePath(b []byte, offset int) *TypePath {
+	return &TypePath{
+		b,
+		offset,
+	}
+}
+
 func NewTypePathFromString(typePath string) *TypePath {
 	if typePath == "" || len(typePath) == 0 {
 		return nil

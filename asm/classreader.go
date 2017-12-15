@@ -1399,8 +1399,64 @@ func (c ClassReader) createDebugLabel(bytecodeOffset int, labels []*Label) {
 // ----------------------------------------------------------------------------------------------
 
 func (c ClassReader) readTypeAnnotations(methodVisitor MethodVisitor, context *Context, runtimeTypeAnnotationsOffset int, visible bool) []int {
-	//TODO
-	return nil
+	charBuffer := context.charBuffer
+	currentOffset := runtimeTypeAnnotationsOffset
+	typeAnnotationsOffsets := make([]int, c.readUnsignedShort(currentOffset))
+	currentOffset += 2
+
+	for i := 0; i < len(typeAnnotationsOffsets); i++ {
+		typeAnnotationsOffsets[i] = currentOffset
+		targetType := c.readInt(currentOffset)
+		switch targetType >> 24 {
+		case typereference.CLASS_TYPE_PARAMETER, typereference.METHOD_TYPE_PARAMETER, typereference.METHOD_FORMAL_PARAMETER:
+			currentOffset += 2
+			break
+		case typereference.FIELD, typereference.METHOD_RETURN, typereference.METHOD_RECEIVER:
+			currentOffset++
+			break
+		case typereference.LOCAL_VARIABLE, typereference.RESOURCE_VARIABLE:
+			tableLength := c.readUnsignedShort(currentOffset + 1)
+			currentOffset += 3
+			for tableLength > 0 {
+				startPc := c.readUnsignedShort(currentOffset)
+				length := c.readUnsignedShort(currentOffset + 2)
+				currentOffset += 6
+				c.createLabel(startPc, context.currentMethodLabels)
+				c.createLabel(startPc+length, context.currentMethodLabels)
+				tableLength--
+			}
+			break
+		case typereference.CAST, typereference.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, typereference.METHOD_INVOCATION_TYPE_ARGUMENT,
+			typereference.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, typereference.METHOD_REFERENCE_TYPE_ARGUMENT:
+			currentOffset += 4
+			break
+		case typereference.CLASS_EXTENDS, typereference.CLASS_TYPE_PARAMETER_BOUND, typereference.METHOD_TYPE_PARAMETER_BOUND,
+			typereference.THROWS, typereference.EXCEPTION_PARAMETER, typereference.INSTANCEOF, typereference.NEW, typereference.CONSTRUCTOR_REFERENCE,
+			typereference.METHOD_REFERENCE:
+			currentOffset += 3
+			break
+		default:
+			//throw AssertionError
+			break
+		}
+
+		pathLength := c.readByte(currentOffset)
+		if (targetType >> 24) == typereference.EXCEPTION_PARAMETER {
+			var path *TypePath
+			if pathLength != 0 {
+				path = NewTypePath(c.b, currentOffset)
+			}
+			currentOffset += 1 + 2*int(pathLength)
+			annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
+			currentOffset += 2
+			currentOffset = c.readElementValues(methodVisitor.VisitTryCatchAnnotation(targetType&0xFFFFF00, path, annotationDescriptor, visible), currentOffset, true, charBuffer)
+		} else {
+			currentOffset += 3 + 2*int(pathLength)
+			currentOffset = c.readElementValues(nil, currentOffset, true, charBuffer)
+		}
+	}
+
+	return typeAnnotationsOffsets
 }
 
 func (c ClassReader) getTypeAnnotationBytecodeOffset(typeAnnotationOffsets []int, typeAnnotationIndex int) int {
@@ -1411,22 +1467,248 @@ func (c ClassReader) getTypeAnnotationBytecodeOffset(typeAnnotationOffsets []int
 }
 
 func (c ClassReader) readTypeAnnotationTarget(context *Context, typeAnnotationOffset int) int {
-	//TODO
-	return 0
+	currentOffset := typeAnnotationOffset
+	targetType := c.readInt(typeAnnotationOffset)
+
+	switch targetType >> 24 {
+	case typereference.CLASS_TYPE_PARAMETER, typereference.METHOD_TYPE_PARAMETER, typereference.METHOD_FORMAL_PARAMETER:
+		targetType &= 0xFFFF0000
+		currentOffset += 2
+		break
+	case typereference.FIELD, typereference.METHOD_RETURN, typereference.METHOD_RECEIVER:
+		targetType &= 0xFF000000
+		currentOffset++
+		break
+	case typereference.LOCAL_VARIABLE, typereference.RESOURCE_VARIABLE:
+		targetType &= 0xFF000000
+		tableLength := c.readUnsignedShort(currentOffset + 1)
+		currentOffset += 3
+		context.currentLocalVariableAnnotationRangeStarts = make([]*Label, tableLength)
+		context.currentLocalVariableAnnotationRangeEnds = make([]*Label, tableLength)
+		context.currentLocalVariableAnnotationRangeIndices = make([]int, tableLength)
+		for i := 0; i < tableLength; i++ {
+			startPc := c.readUnsignedShort(currentOffset)
+			length := c.readUnsignedShort(currentOffset + 2)
+			index := c.readUnsignedShort(currentOffset + 4)
+			currentOffset += 6
+			context.currentLocalVariableAnnotationRangeStarts[i] = c.createLabel(startPc, context.currentMethodLabels)
+			context.currentLocalVariableAnnotationRangeEnds[i] = c.createLabel(startPc+length, context.currentMethodLabels)
+			context.currentLocalVariableAnnotationRangeIndices[i] = index
+		}
+		break
+	case typereference.CAST, typereference.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, typereference.METHOD_INVOCATION_TYPE_ARGUMENT,
+		typereference.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, typereference.METHOD_REFERENCE_TYPE_ARGUMENT:
+		targetType &= 0xFF0000FF
+		currentOffset += 4
+		break
+	case typereference.CLASS_EXTENDS, typereference.CLASS_TYPE_PARAMETER_BOUND, typereference.METHOD_TYPE_PARAMETER_BOUND,
+		typereference.THROWS, typereference.EXCEPTION_PARAMETER:
+		targetType &= 0xFFFFFF00
+		currentOffset += 3
+		break
+	case typereference.INSTANCEOF, typereference.NEW, typereference.CONSTRUCTOR_REFERENCE, typereference.METHOD_REFERENCE:
+		targetType &= 0xFF000000
+		currentOffset += 3
+		break
+	default:
+		//throw new AssertionError
+		break
+	}
+	context.currentTypeAnnotationTarget = targetType
+	pathLength := c.readByte(currentOffset)
+	if pathLength != 0 {
+		context.currentTypeAnnotationTargetPath = NewTypePath(c.b, currentOffset)
+	}
+
+	return currentOffset + 1 + 2*int(pathLength)
 }
 
 func (c ClassReader) readParameterAnnotations(methodVisitor MethodVisitor, context *Context, runtimeParameterAnnotationsOffset int, visible bool) {
-	//TODO
+	currentOffset := runtimeParameterAnnotationsOffset
+	numParameters := c.b[currentOffset] & 0xFF
+	currentOffset++
+	methodVisitor.VisitAnnotableParameterCount(int(numParameters), visible)
+	charBuffer := context.charBuffer
+	for i := 0; i < int(numParameters); i++ {
+		numAnnotations := c.readUnsignedShort(currentOffset)
+		currentOffset += 2
+		for numAnnotations > 0 {
+			annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
+			currentOffset += 2
+			currentOffset = c.readElementValues(methodVisitor.VisitParameterAnnotation(i, annotationDescriptor, visible), currentOffset, true, charBuffer)
+			numAnnotations--
+		}
+	}
 }
 
 func (c ClassReader) readElementValues(annotationVisitor AnnotationVisitor, annotationOffset int, named bool, charBuffer []rune) int {
-	//TODO
-	return 0
+	currentOffset := annotationOffset
+	numElementValuePairs := c.readUnsignedShort(currentOffset)
+	currentOffset += 2
+	if named {
+		for numElementValuePairs > 0 {
+			elementName := c.readUTF8(currentOffset, charBuffer)
+			currentOffset = c.readElementValue(annotationVisitor, currentOffset+2, elementName, charBuffer)
+			numElementValuePairs--
+		}
+	} else {
+		for numElementValuePairs > 0 {
+			currentOffset = c.readElementValue(annotationVisitor, currentOffset, "", charBuffer)
+			numElementValuePairs--
+		}
+	}
+	if annotationVisitor != nil {
+		annotationVisitor.VisitEnd()
+	}
+	return currentOffset
 }
 
 func (c ClassReader) readElementValue(annotationVisitor AnnotationVisitor, elementValueOffset int, elementName string, charBuffer []rune) int {
-	//TODO
-	return 0
+	currentOffset := elementValueOffset
+	if annotationVisitor == nil {
+		switch c.b[currentOffset] & 0xFF {
+		case 'e':
+			return currentOffset + 5
+		case '@':
+			return c.readElementValues(nil, currentOffset+3, true, charBuffer)
+		case '[':
+			return c.readElementValues(nil, currentOffset+1, false, charBuffer)
+		default:
+			return currentOffset + 3
+		}
+	}
+	switch c.b[currentOffset] & 0xFF {
+	case 'B':
+		currentOffset++
+		annotationVisitor.Visit(elementName, byte(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset)])))
+		currentOffset += 2
+		break
+	case 'C':
+		currentOffset++
+		annotationVisitor.Visit(elementName, rune(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset)])))
+		currentOffset += 2
+		break
+	case 'D', 'F', 'I', 'J':
+		currentOffset++
+		constd, _ := c.readConst(c.readUnsignedShort(currentOffset), charBuffer)
+		annotationVisitor.Visit(elementName, constd)
+		currentOffset += 2
+		break
+	case 'S':
+		currentOffset++
+		annotationVisitor.Visit(elementName, int16(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset)])))
+		currentOffset += 2
+		break
+	case 'Z':
+		currentOffset++
+		val := true
+		if c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset)]) == 0 {
+			val = false
+		}
+		annotationVisitor.Visit(elementName, val)
+		currentOffset += 2
+		break
+	case 's':
+		currentOffset++
+		annotationVisitor.Visit(elementName, c.readUTF8(currentOffset, charBuffer))
+		currentOffset += 2
+		break
+	case 'e':
+		currentOffset++
+		annotationVisitor.VisitEnum(elementName, c.readUTF8(currentOffset, charBuffer), c.readUTF8(currentOffset+2, charBuffer))
+		currentOffset += 4
+		break
+	case 'c':
+		currentOffset++
+		annotationVisitor.Visit(elementName, getType(c.readUTF8(currentOffset, charBuffer)))
+		currentOffset += 2
+		break
+	case '@':
+		currentOffset++
+		currentOffset = c.readElementValues(annotationVisitor.VisitArray(elementName), currentOffset-2, false, charBuffer)
+		break
+	case '[':
+		currentOffset++
+		numValues := c.readUnsignedShort(currentOffset)
+		currentOffset += 2
+		if numValues == 0 {
+			return c.readElementValues(annotationVisitor.VisitArray(elementName), currentOffset-2, false, charBuffer)
+		}
+		switch c.b[currentOffset] & 0xFF {
+		case 'B':
+			byteValues := make([]byte, numValues)
+			for i := 0; i < numValues; i++ {
+				byteValues[i] = byte(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]))
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, byteValues)
+			break
+		case 'Z':
+			boolenValues := make([]bool, numValues)
+			for i := 0; i < numValues; i++ {
+				boolenValues[i] = c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]) != 0
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, boolenValues)
+			break
+		case 'S':
+			shortValues := make([]int16, numValues)
+			for i := 0; i < numValues; i++ {
+				shortValues[i] = int16(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]))
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, shortValues)
+			break
+		case 'C':
+			charValues := make([]rune, numValues)
+			for i := 0; i < numValues; i++ {
+				charValues[i] = rune(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]))
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, charValues)
+			break
+		case 'I':
+			intValues := make([]int, numValues)
+			for i := 0; i < numValues; i++ {
+				intValues[i] = c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)])
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, intValues)
+			break
+		case 'J':
+			longValues := make([]int64, numValues)
+			for i := 0; i < numValues; i++ {
+				longValues[i] = c.readLong(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)])
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, longValues)
+			break
+		case 'F':
+			floatValues := make([]float32, numValues)
+			for i := 0; i < numValues; i++ {
+				floatValues[i] = float32(c.readInt(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]))
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, floatValues)
+			break
+		case 'D':
+			doubleValues := make([]float64, numValues)
+			for i := 0; i < numValues; i++ {
+				doubleValues[i] = float64(c.readLong(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+1)]))
+				currentOffset += 3
+			}
+			annotationVisitor.Visit(elementName, doubleValues)
+			break
+		default:
+			currentOffset = c.readElementValues(annotationVisitor.VisitArray(elementName), currentOffset-2, false, charBuffer)
+			break
+		}
+		break
+	default:
+		//throw new AssertionError
+		break
+	}
+	return currentOffset
 }
 
 // ----------------------------------------------------------------------------------------------
