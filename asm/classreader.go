@@ -1259,8 +1259,8 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			currentOffset += 4
 			break
 		default:
+			panic(errors.New("Assertion Error"))
 			break
-			//throw new AssertionError()
 		}
 
 		for visibleTypeAnnotationOffsets != nil && currentVisibleTypeAnnotationIndex < len(visibleTypeAnnotationOffsets) && currentVisibleTypeAnnotationBytecodeOffset <= currentBytecodeOffset {
@@ -1441,7 +1441,7 @@ func (c ClassReader) readTypeAnnotations(methodVisitor MethodVisitor, context *C
 			currentOffset += 3
 			break
 		default:
-			//throw AssertionError
+			panic(errors.New("Assertion Error"))
 			break
 		}
 
@@ -1516,7 +1516,7 @@ func (c ClassReader) readTypeAnnotationTarget(context *Context, typeAnnotationOf
 		currentOffset += 3
 		break
 	default:
-		//throw new AssertionError
+		panic(errors.New("Assertion Error"))
 		break
 	}
 	context.currentTypeAnnotationTarget = targetType
@@ -1710,7 +1710,7 @@ func (c ClassReader) readElementValue(annotationVisitor AnnotationVisitor, eleme
 		}
 		break
 	default:
-		//throw new AssertionError
+		panic(errors.New("Assertion Error"))
 		break
 	}
 	return currentOffset
@@ -1721,17 +1721,177 @@ func (c ClassReader) readElementValue(annotationVisitor AnnotationVisitor, eleme
 // ----------------------------------------------------------------------------------------------
 
 func (c ClassReader) computeImplicitFame(context *Context) {
-	//TODO
+	methodDescriptor := context.currentMethodDescriptor
+	locals := context.currentFrameLocalTypes
+	nLocal := 0
+	if (context.currentMethodAccessFlags & opcodes.ACC_STATIC) == 0 {
+		if "<init>" == context.currentMethodName {
+			locals[nLocal] = opcodes.UNINITIALIZED_THIS
+			nLocal++
+		} else {
+			locals[nLocal] = c.readClass(c.header+2, context.charBuffer)
+			nLocal++
+		}
+	}
+
+	currentMethodDescriptorOffset := 1
+	for {
+		currentArgumentDescriptorStartOffset := currentMethodDescriptorOffset
+		currentMethodDescriptorOffset++
+		switch methodDescriptor[currentMethodDescriptorOffset-1] {
+		case 'Z', 'C', 'B', 'S', 'I':
+			locals[nLocal] = opcodes.INTEGER
+			nLocal++
+			break
+		case 'F':
+			locals[nLocal] = opcodes.FLOAT
+			nLocal++
+			break
+		case 'J':
+			locals[nLocal] = opcodes.LONG
+			nLocal++
+			break
+		case 'D':
+			locals[nLocal] = opcodes.DOUBLE
+			nLocal++
+			break
+		case '[':
+			for methodDescriptor[currentMethodDescriptorOffset] == '[' {
+				currentMethodDescriptorOffset++
+			}
+			if methodDescriptor[currentMethodDescriptorOffset] == 'L' {
+				currentMethodDescriptorOffset++
+				for methodDescriptor[currentMethodDescriptorOffset] != ';' {
+					currentMethodDescriptorOffset++
+				}
+			}
+			currentMethodDescriptorOffset++
+			locals[nLocal] = methodDescriptor[currentArgumentDescriptorStartOffset:currentMethodDescriptorOffset]
+			nLocal++
+			break
+		case 'L':
+			for methodDescriptor[currentMethodDescriptorOffset] != ';' {
+				currentMethodDescriptorOffset++
+			}
+			locals[nLocal] = methodDescriptor[currentArgumentDescriptorStartOffset+1 : currentMethodDescriptorOffset]
+			currentMethodDescriptorOffset++
+			nLocal++
+			break
+		default:
+			context.currentFrameLocalCount = nLocal
+			return
+		}
+	}
 }
 
 func (c ClassReader) readStackMapFrame(stackMapFrameOffset int, compressed bool, expand bool, context *Context) int {
-	//TODO
-	return 0
+	currentOffset := stackMapFrameOffset
+	charBuffer := context.charBuffer
+	labels := context.currentMethodLabels
+	var frameType int
+	if compressed {
+		frameType = int(c.b[currentOffset] & 0xFF)
+		currentOffset++
+	} else {
+		frameType = frame.FULL_FRAME
+		context.currentFrameOffset = -1
+	}
+	var offsetDelta int
+	context.currentFrameLocalCount = 0
+	if frameType < frame.SAME_LOCALS_1_STACK_ITEM_FRAME {
+		offsetDelta = frameType
+		context.currentFrameType = opcodes.F_SAME
+		context.currentFrameStackCount = 0
+	} else if frameType < frame.RESERVED {
+		offsetDelta = frameType - frame.SAME_LOCALS_1_STACK_ITEM_FRAME
+		currentOffset = c.readVerificationTypeInfo(currentOffset, context.currentFrameStackTypes, 0, charBuffer, labels)
+		context.currentFrameType = opcodes.F_SAME1
+		context.currentFrameStackCount = 1
+	} else {
+		offsetDelta = c.readUnsignedShort(currentOffset)
+		currentOffset += 2
+		if frameType == frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED {
+			currentOffset = c.readVerificationTypeInfo(currentOffset, context.currentFrameStackTypes, 0, charBuffer, labels)
+			context.currentFrameType = opcodes.F_SAME1
+			context.currentFrameStackCount = 1
+		} else if frameType >= frame.CHOP_FRAME && frameType < frame.SAME_FRAME_EXTENDED {
+			context.currentFrameType = opcodes.F_CHOP
+			context.currentFrameLocalCountDelta = frame.SAME_FRAME_EXTENDED - frameType
+			context.currentFrameLocalCount -= context.currentFrameLocalCountDelta
+			context.currentFrameStackCount = 0
+		} else if frameType == frame.SAME_FRAME_EXTENDED {
+			context.currentFrameType = opcodes.F_SAME
+			context.currentFrameStackCount = 0
+		} else if frameType < frame.FULL_FRAME {
+			local := 0
+			if expand {
+				local = context.currentFrameLocalCount
+			}
+			for k := frameType - frame.SAME_FRAME_EXTENDED; k > 0; k-- {
+				currentOffset = c.readVerificationTypeInfo(currentOffset, context.currentFrameLocalTypes, local, charBuffer, labels)
+				local++
+			}
+			context.currentFrameType = opcodes.F_APPEND
+			context.currentFrameLocalCountDelta = frameType - frame.SAME_FRAME_EXTENDED
+			context.currentFrameLocalCount += context.currentFrameLocalCountDelta
+			context.currentFrameStackCount = 0
+		} else {
+			numberOfLocals := c.readUnsignedShort(currentOffset)
+			currentOffset += 2
+			context.currentFrameType = opcodes.F_FULL
+			context.currentFrameLocalCountDelta = numberOfLocals
+			context.currentFrameLocalCount = numberOfLocals
+			for local := 0; local < numberOfLocals; local++ {
+				currentOffset = c.readVerificationTypeInfo(currentOffset, context.currentFrameLocalTypes, local, charBuffer, labels)
+			}
+			numberOfStackItems := c.readUnsignedShort(currentOffset)
+			currentOffset += 2
+			context.currentFrameStackCount = numberOfStackItems
+			for stack := 0; stack < numberOfStackItems; stack++ {
+				currentOffset = c.readVerificationTypeInfo(currentOffset, context.currentFrameStackTypes, stack, charBuffer, labels)
+			}
+		}
+	}
+	context.currentFrameOffset += offsetDelta + 1
+	c.createLabel(context.currentFrameOffset, labels)
+	return currentOffset
 }
 
-func (c ClassReader) readVerificationTypeInfo(verificationTypeInfoOffset int, frame []interface{}, index int, charBuffer []rune, labels []*Label) int {
-	//TODO
-	return 0
+func (c ClassReader) readVerificationTypeInfo(verificationTypeInfoOffset int, framed []interface{}, index int, charBuffer []rune, labels []*Label) int {
+	currentOffset := verificationTypeInfoOffset
+	tag := c.b[currentOffset] & 0xFF
+	currentOffset++
+	switch tag {
+	case frame.ITEM_TOP:
+		framed[index] = opcodes.TOP
+		break
+	case frame.ITEM_INTEGER:
+		framed[index] = opcodes.INTEGER
+		break
+	case frame.ITEM_FLOAT:
+		framed[index] = opcodes.FLOAT
+		break
+	case frame.ITEM_DOUBLE:
+		framed[index] = opcodes.DOUBLE
+		break
+	case frame.ITEM_LONG:
+		framed[index] = opcodes.LONG
+		break
+	case frame.ITEM_NULL:
+		framed[index] = opcodes.NULL
+		break
+	case frame.ITEM_UNINITIALIZED_THIS:
+		framed[index] = opcodes.UNINITIALIZED_THIS
+		break
+	case frame.ITEM_OBJECT:
+		framed[index] = c.readClass(currentOffset, charBuffer)
+		currentOffset += 2
+		break
+	default:
+		framed[index] = c.createLabel(c.readUnsignedShort(currentOffset), labels)
+		currentOffset += 2
+	}
+	return currentOffset
 }
 
 // ----------------------------------------------------------------------------------------------
