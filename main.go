@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/leaklessgfy/asm/asm"
+	"github.com/leaklessgfy/asm/asm/helper"
 )
 
 func main() {
@@ -26,20 +27,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	reader.Accept(&SimpleVisitor{
+	reader.Accept(&helper.ClassVisitor{
 		OnVisit: func(version, access int, name, signature, superName string, interfaces []string) {
-			fmt.Println(name, signature, superName, interfaces)
 		},
 		OnVisitField: func(access int, name, descriptor, signature string, value interface{}) asm.FieldVisitor {
-			fmt.Println(name)
 			return nil
 		},
 		OnVisitMethod: func(access int, name, descriptor, signature string, exceptions []string) asm.MethodVisitor {
-			fmt.Println(name)
-			return nil
+			return &helper.MethodVisitor{
+				OnVisitLineNumber: func(line int, start *asm.Label) {
+					fmt.Println(line)
+				},
+			}
 		},
 		OnVisitEnd: func() {
-			fmt.Println("End")
 		},
-	}, asm.EXPAND_FRAMS)
+	}, 0)
 }

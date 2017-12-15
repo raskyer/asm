@@ -288,10 +288,10 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		numAnnotations := c.readUnsignedShort(runtimeVisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeVisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(classVisitor.VisitAnnotation(annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -299,10 +299,10 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(classVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -310,10 +310,10 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(classVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -321,11 +321,11 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleTypeAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleTypeAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(classVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -340,23 +340,23 @@ func (c ClassReader) AcceptB(classVisitor ClassVisitor, attributePrototypes []*A
 		numberOfClasses := c.readUnsignedShort(innerClassesOffset)
 		currentClassesOffset := innerClassesOffset + 2
 		for numberOfClasses > 0 {
+			numberOfClasses--
 			classVisitor.VisitInnerClass(c.readClass(currentClassesOffset, charBuffer), c.readClass(currentAttributeOffset+2, charBuffer), c.readClass(currentClassesOffset+4, charBuffer), c.readUnsignedShort(currentClassesOffset+6))
 			currentClassesOffset += 8
-			numberOfClasses--
 		}
 	}
 
 	fieldsCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for fieldsCount > 0 {
-		currentOffset = c.readField(classVisitor, context, currentOffset)
 		fieldsCount--
+		currentOffset = c.readField(classVisitor, context, currentOffset)
 	}
 	methodsCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for methodsCount > 0 {
-		currentOffset = c.readMethod(classVisitor, context, currentOffset)
 		methodsCount--
+		currentOffset = c.readMethod(classVisitor, context, currentOffset)
 	}
 
 	classVisitor.VisitEnd()
@@ -382,26 +382,27 @@ func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, mod
 		packageCount := c.readUnsignedShort(modulePackagesOffset)
 		currentPackageOffset := modulePackagesOffset + 2
 		for packageCount > 0 {
+			packageCount--
 			moduleVisitor.VisitPackage(c.readPackage(currentPackageOffset, buffer))
 			currentPackageOffset += 2
-			packageCount--
 		}
 	}
 
 	requiresCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for requiresCount > 0 {
+		requiresCount--
 		requires := c.readModuleB(currentOffset, buffer)
 		requiresFlags := c.readUnsignedShort(currentOffset + 2)
 		requiresVersion := c.readUTF8(currentOffset+4, buffer)
 		currentOffset += 6
 		moduleVisitor.VisitRequire(requires, requiresFlags, requiresVersion)
-		requiresCount--
 	}
 
 	exportsCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for exportsCount > 0 {
+		exportsCount--
 		exports := c.readPackage(currentOffset, buffer)
 		exportsFlags := c.readUnsignedShort(currentOffset + 2)
 		exportsToCount := c.readUnsignedShort(currentOffset + 4)
@@ -415,12 +416,12 @@ func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, mod
 			}
 		}
 		moduleVisitor.VisitExport(exports, exportsFlags, exportsTo...)
-		exportsCount--
 	}
 
 	opensCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for opensCount > 0 {
+		opensCount--
 		opens := c.readPackage(currentOffset, buffer)
 		opensFlags := c.readUnsignedShort(currentOffset + 2)
 		opensToCount := c.readUnsignedShort(currentOffset + 4)
@@ -439,14 +440,15 @@ func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, mod
 	usesCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for usesCount > 0 {
+		usesCount--
 		moduleVisitor.VisitUse(c.readClass(currentOffset, buffer))
 		currentOffset += 2
-		usesCount--
 	}
 
 	providesCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for providesCount > 0 {
+		providesCount--
 		provides := c.readClass(currentOffset, buffer)
 		providesWithCount := c.readUnsignedShort(currentOffset + 2)
 		currentOffset += 4
@@ -456,7 +458,6 @@ func (c ClassReader) readModule(classVisitor ClassVisitor, context *Context, mod
 			currentOffset += 2
 		}
 		moduleVisitor.VisitProvide(provides, providesWith...)
-		providesCount--
 	}
 
 	moduleVisitor.VisitEnd()
@@ -483,6 +484,7 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 	currentOffset += 2
 
 	for attributesCount > 0 {
+		attributesCount--
 		attributeName := c.readUTF8(currentOffset, charBuffer)
 		attributeLength := c.readInt(currentOffset + 2)
 		currentOffset += 6
@@ -522,7 +524,6 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 			break
 		}
 		currentOffset += attributeLength
-		attributesCount--
 	}
 
 	fieldVisitor := classVisitor.VisitField(accessFlags, name, descriptor, signature, constantValue)
@@ -534,10 +535,10 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 		numAnnotations := c.readUnsignedShort(runtimeVisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeVisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(fieldVisitor.VisitAnnotation(annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -545,10 +546,10 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(fieldVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -556,12 +557,12 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 		numAnnotations := c.readUnsignedShort(runtimeVisibleTypeAnnotationsOffset)
 		currentAnnotationOffset := runtimeVisibleTypeAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			annotationVisitor := fieldVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, true)
 			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -569,12 +570,12 @@ func (c ClassReader) readField(classVisitor ClassVisitor, context *Context, fiel
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleTypeAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleTypeAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			annotationVisitor := fieldVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, false)
 			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -614,13 +615,16 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 	attributesCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for attributesCount > 0 {
+		attributesCount--
 		attributeName := c.readUTF8(currentOffset, charBuffer)
 		attributeLength := c.readInt(currentOffset + 2)
 		currentOffset += 6
 
 		switch attributeName {
 		case "Code":
-			codeOffset = currentOffset
+			if (context.parsingOptions & SKIP_CODE) == 0 {
+				codeOffset = currentOffset
+			}
 			break
 		case "Exceptions":
 			exceptionsOffset = currentOffset
@@ -671,7 +675,6 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 			break
 		}
 		currentOffset += attributeLength
-		attributesCount--
 	}
 
 	var sig string
@@ -689,9 +692,9 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 		parametersCount := c.readByte(methodParametersOffset)
 		currentParameterOffset := methodParametersOffset + 1
 		for parametersCount > 0 {
+			parametersCount--
 			methodVisitor.VisitParameter(c.readUTF8(currentParameterOffset, charBuffer), c.readUnsignedShort(currentParameterOffset+2))
 			currentParameterOffset += 4
-			parametersCount--
 		}
 	}
 
@@ -707,10 +710,10 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 		numAnnotations := c.readUnsignedShort(runtimeVisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeVisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(methodVisitor.VisitAnnotation(annotationDescriptor, true), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -718,10 +721,10 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			currentAnnotationOffset = c.readElementValues(methodVisitor.VisitAnnotation(annotationDescriptor, false), currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -729,12 +732,12 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 		numAnnotations := c.readUnsignedShort(runtimeVisibleTypeAnnotationsOffset)
 		currentAnnotationOffset := runtimeVisibleTypeAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
 			annotationVisitor := methodVisitor.VisitTypeAnnotation(context.currentTypeAnnotationTarget, context.currentTypeAnnotationTargetPath, annotationDescriptor, true)
 			currentAnnotationOffset = c.readElementValues(annotationVisitor, currentAnnotationOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 
@@ -742,6 +745,7 @@ func (c ClassReader) readMethod(classVisitor ClassVisitor, context *Context, met
 		numAnnotations := c.readUnsignedShort(runtimeInvisibleTypeAnnotationsOffset)
 		currentAnnotationOffset := runtimeInvisibleTypeAnnotationsOffset + 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			currentAnnotationOffset = c.readTypeAnnotationTarget(context, currentAnnotationOffset)
 			annotationDescriptor := c.readUTF8(currentAnnotationOffset, charBuffer)
 			currentAnnotationOffset += 2
@@ -845,9 +849,9 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			numTableEntries := c.readInt(currentOffset+8) - c.readInt(currentOffset+4) + 1
 			currentOffset += 12
 			for numTableEntries > 0 {
+				numTableEntries--
 				c.createLabel(bytecodeOffset+c.readInt(currentOffset), labels)
 				currentOffset += 4
-				numTableEntries--
 			}
 			break
 		case constants.LOOKUPSWITCH:
@@ -856,9 +860,9 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			numSwitchCases := c.readInt(currentOffset + 4)
 			currentOffset += 8
 			for numSwitchCases > 0 {
+				numSwitchCases--
 				c.createLabel(bytecodeOffset+c.readInt(currentOffset+4), labels)
 				currentOffset += 8
-				numSwitchCases--
 			}
 			break
 		case constants.ILOAD, constants.LLOAD, constants.FLOAD, constants.DLOAD, constants.ALOAD, constants.ISTORE,
@@ -878,6 +882,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			break
 		default:
 			//throw error
+			panic(errors.New("AssertionError"))
 			break
 		}
 	}
@@ -886,13 +891,13 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 		exceptionTableLength := c.readUnsignedShort(currentOffset)
 		currentOffset += 2
 		for exceptionTableLength > 0 {
+			exceptionTableLength--
 			start := c.createLabel(c.readUnsignedShort(currentOffset), labels)
 			end := c.createLabel(c.readUnsignedShort(currentOffset+2), labels)
 			handler := c.createLabel(c.readUnsignedShort(currentOffset+4), labels)
 			catchType := c.readUTF8(c.cpInfoOffsets[c.readUnsignedShort(currentOffset+6)], charBuffer)
 			currentOffset += 8
 			methodVisitor.VisitTryCatchBlock(start, end, handler, catchType)
-			exceptionTableLength--
 		}
 	}
 
@@ -908,6 +913,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 	attributesCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for attributesCount > 0 {
+		attributesCount--
 		attributeName := c.readUTF8(currentOffset, charBuffer)
 		attributeLength := c.readInt(currentOffset + 2)
 		currentOffset += 6
@@ -919,12 +925,12 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 				localVariableTableLength := c.readUnsignedShort(currentOffset)
 				currentOffset += 2
 				for localVariableTableLength > 0 {
+					localVariableTableLength--
 					startPc := c.readUnsignedShort(currentOffset)
 					c.createDebugLabel(startPc, labels)
 					length := c.readUnsignedShort(currentOffset + 2)
 					c.createDebugLabel(startPc+length, labels)
 					currentOffset += 10
-					localVariableTableLength--
 				}
 				continue
 			}
@@ -937,12 +943,12 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 				lineNumberTableLength := c.readUnsignedShort(currentOffset)
 				currentOffset += 2
 				for lineNumberTableLength > 0 {
+					lineNumberTableLength--
 					startPc := c.readUnsignedShort(currentOffset)
 					lineNumber := c.readUnsignedShort(currentOffset + 2)
 					currentOffset += 4
 					c.createDebugLabel(startPc, labels)
 					labels[startPc].addLineNumber(lineNumber)
-					lineNumberTableLength--
 				}
 				continue
 			}
@@ -973,7 +979,6 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 			break
 		}
 		currentOffset += attributeLength
-		attributesCount--
 	}
 
 	expandFrames := (context.parsingOptions & EXPAND_FRAMS) != 0
@@ -1303,6 +1308,7 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 		localVariableTableLength := c.readUnsignedShort(localVariableTableOffset)
 		currentOffset = localVariableTableOffset + 2
 		for localVariableTableLength > 0 {
+			localVariableTableLength--
 			startPc := c.readUnsignedShort(currentOffset)
 			length := c.readUnsignedShort(currentOffset + 2)
 			name := c.readUTF8(currentOffset+4, charBuffer)
@@ -1319,7 +1325,6 @@ func (c ClassReader) readCode(methodVisitor MethodVisitor, context *Context, cod
 				}
 			}
 			methodVisitor.VisitLocalVariable(name, descriptor, signature, labels[startPc], labels[startPc+length], index)
-			localVariableTableLength--
 		}
 	}
 
@@ -1418,12 +1423,12 @@ func (c ClassReader) readTypeAnnotations(methodVisitor MethodVisitor, context *C
 			tableLength := c.readUnsignedShort(currentOffset + 1)
 			currentOffset += 3
 			for tableLength > 0 {
+				tableLength--
 				startPc := c.readUnsignedShort(currentOffset)
 				length := c.readUnsignedShort(currentOffset + 2)
 				currentOffset += 6
 				c.createLabel(startPc, context.currentMethodLabels)
 				c.createLabel(startPc+length, context.currentMethodLabels)
-				tableLength--
 			}
 			break
 		case typereference.CAST, typereference.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, typereference.METHOD_INVOCATION_TYPE_ARGUMENT,
@@ -1533,10 +1538,10 @@ func (c ClassReader) readParameterAnnotations(methodVisitor MethodVisitor, conte
 		numAnnotations := c.readUnsignedShort(currentOffset)
 		currentOffset += 2
 		for numAnnotations > 0 {
+			numAnnotations--
 			annotationDescriptor := c.readUTF8(currentOffset, charBuffer)
 			currentOffset += 2
 			currentOffset = c.readElementValues(methodVisitor.VisitParameterAnnotation(i, annotationDescriptor, visible), currentOffset, true, charBuffer)
-			numAnnotations--
 		}
 	}
 }
@@ -1547,14 +1552,14 @@ func (c ClassReader) readElementValues(annotationVisitor AnnotationVisitor, anno
 	currentOffset += 2
 	if named {
 		for numElementValuePairs > 0 {
+			numElementValuePairs--
 			elementName := c.readUTF8(currentOffset, charBuffer)
 			currentOffset = c.readElementValue(annotationVisitor, currentOffset+2, elementName, charBuffer)
-			numElementValuePairs--
 		}
 	} else {
 		for numElementValuePairs > 0 {
-			currentOffset = c.readElementValue(annotationVisitor, currentOffset, "", charBuffer)
 			numElementValuePairs--
+			currentOffset = c.readElementValue(annotationVisitor, currentOffset, "", charBuffer)
 		}
 	}
 	if annotationVisitor != nil {
@@ -1738,25 +1743,25 @@ func (c ClassReader) getFirstAttributeOffset() int {
 	fieldsCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for fieldsCount > 0 {
+		fieldsCount--
 		attributesCount := c.readUnsignedShort(currentOffset + 6)
 		currentOffset += 8
 		for attributesCount > 0 {
-			currentOffset += 6 + c.readInt(currentOffset+2)
 			attributesCount--
+			currentOffset += 6 + c.readInt(currentOffset+2)
 		}
-		fieldsCount--
 	}
 
 	methodsCount := c.readUnsignedShort(currentOffset)
 	currentOffset += 2
 	for methodsCount > 0 {
+		methodsCount--
 		attributesCount := c.readUnsignedShort(currentOffset + 6)
 		currentOffset += 8
 		for attributesCount > 0 {
-			currentOffset += 6 + c.readInt(currentOffset+2)
 			attributesCount--
+			currentOffset += 6 + c.readInt(currentOffset+2)
 		}
-		methodsCount--
 	}
 
 	return currentOffset + 2
